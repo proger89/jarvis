@@ -14,6 +14,18 @@ type ApiKeyCheckResult = {
   message: string;
 };
 
+type MemoryFact = {
+  key: string;
+  value: string;
+  scope: string;
+  updatedAt: number;
+};
+
+type ClearMemoryResult = {
+  ok: boolean;
+  message: string;
+};
+
 type SettingsViewProps = {
   settings: AppSettings;
   apiKeyPresent: boolean;
@@ -38,6 +50,8 @@ export function SettingsView({
   const [keyCheckMessage, setKeyCheckMessage] = useState("");
   const [inputDevices, setInputDevices] = useState<DeviceOption[]>([]);
   const [outputDevices, setOutputDevices] = useState<DeviceOption[]>([]);
+  const [memoryFacts, setMemoryFacts] = useState<MemoryFact[]>([]);
+  const [memoryMessage, setMemoryMessage] = useState("");
   const text = getCopy(language);
   const phaseOneChecklist = [
     {
@@ -109,6 +123,19 @@ export function SettingsView({
     void loadDevices();
   }, [text.settings.defaultDevice, text.settings.microphoneFallback, text.settings.speakerFallback]);
 
+  useEffect(() => {
+    async function loadMemoryFacts() {
+      try {
+        const facts = await invoke<MemoryFact[]>("list_memory_facts");
+        setMemoryFacts(facts);
+      } catch {
+        setMemoryMessage(text.settings.memoryLoadFailed);
+      }
+    }
+
+    void loadMemoryFacts();
+  }, [text.settings.memoryLoadFailed]);
+
   async function closeWindow() {
     await getCurrentWindow().hide();
   }
@@ -157,6 +184,18 @@ export function SettingsView({
       setKeyCheckMessage(result.message);
     } catch {
       setKeyCheckMessage(text.settings.keyCheckFailed);
+    }
+  }
+
+  async function handleForgetMe() {
+    setMemoryMessage("");
+
+    try {
+      const result = await invoke<ClearMemoryResult>("clear_memory_facts");
+      setMemoryFacts([]);
+      setMemoryMessage(result.message);
+    } catch {
+      setMemoryMessage(text.settings.memoryClearFailed);
     }
   }
 
@@ -306,6 +345,39 @@ export function SettingsView({
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section className="settings-section">
+            <div className="section-header">
+              <div>
+                <h2 className="overlay-title">{text.settings.memoryTitle}</h2>
+                <p className="section-copy">{text.settings.memorySummary}</p>
+              </div>
+            </div>
+
+            {memoryFacts.length > 0 ? (
+              <ul className="memory-list">
+                {memoryFacts.map((fact) => (
+                  <li key={`${fact.scope}-${fact.key}`}>
+                    <div>
+                      <strong>{fact.key}</strong>
+                      <span>{fact.value}</span>
+                    </div>
+                    <span className="badge pending">{fact.scope}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="inline-note">{text.settings.memoryEmpty}</p>
+            )}
+
+            {memoryMessage && <p className="inline-note">{memoryMessage}</p>}
+
+            <div className="settings-actions">
+              <button className="secondary-button danger-button" onClick={handleForgetMe} type="button">
+                {text.settings.forgetMeButton}
+              </button>
+            </div>
           </section>
         </div>
       </section>

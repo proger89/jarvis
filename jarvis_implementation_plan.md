@@ -257,7 +257,7 @@ Definition of done:
 - `[not-done]` Создать таблицы `profile`, `preferences`, `memory_facts`, `session_summaries`, `tool_audit_log`, `device_history`
 - `[not-done]` Реализовать rolling summaries
 - `[in-progress]` Реализовать explicit facts store
-- `[not-done]` Добавить `forget me` control в settings
+- `[in-progress]` Добавить `forget me` control в settings
 
 Definition of done:
 - Профиль и настройки сохраняются локально
@@ -266,7 +266,8 @@ Definition of done:
 Текущее состояние phase:
 - `[in-progress]` Есть локальный JSON-backed store для `remember_fact / recall_fact`
 - `[in-progress]` Realtime tools уже умеют сохранять и читать простые факты через native side
-- `[not-done]` SQLite, summaries и управление памятью в settings еще не добавлены
+- `[in-progress]` В settings уже можно увидеть локальные факты и очистить память через `forget me`
+- `[not-done]` SQLite и rolling summaries еще не добавлены
 
 ### Phase 10 — Windows integration and resilience
 Цель: довести приложение до usable desktop product.

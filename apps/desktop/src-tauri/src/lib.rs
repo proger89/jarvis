@@ -81,6 +81,13 @@ struct RecallFactResult {
     matches: Vec<MemoryFact>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ClearMemoryResult {
+    ok: bool,
+    message: String,
+}
+
 impl Default for UiSettings {
     fn default() -> Self {
         Self {
@@ -610,6 +617,22 @@ fn recall_fact(app: AppHandle, query: String) -> Result<RecallFactResult, String
     })
 }
 
+#[tauri::command]
+fn list_memory_facts(app: AppHandle) -> Result<Vec<MemoryFact>, String> {
+    let mut facts = load_memory_facts(&app)?;
+    facts.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
+    Ok(facts)
+}
+
+#[tauri::command]
+fn clear_memory_facts(app: AppHandle) -> Result<ClearMemoryResult, String> {
+    save_memory_facts(&app, &[])?;
+    Ok(ClearMemoryResult {
+        ok: true,
+        message: "Локальная память очищена.".to_string(),
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -629,7 +652,9 @@ pub fn run() {
             create_realtime_session,
             search_web,
             remember_fact,
-            recall_fact
+            recall_fact,
+            list_memory_facts,
+            clear_memory_facts
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
