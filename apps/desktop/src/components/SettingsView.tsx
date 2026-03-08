@@ -52,6 +52,7 @@ type DeviceHistoryRecord = {
 type SettingsViewProps = {
   settings: AppSettings;
   apiKeyPresent: boolean;
+  apiKeyPreview: string | null;
   statusMessage: string;
   onSave: (settings: AppSettings, apiKeyDraft: string) => Promise<void>;
 };
@@ -71,6 +72,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 export function SettingsView({
   settings,
   apiKeyPresent,
+  apiKeyPreview,
   statusMessage,
   onSave,
 }: SettingsViewProps) {
@@ -437,6 +439,7 @@ export function SettingsView({
             <p className="inline-note">
               {apiKeyPresent ? text.settings.apiKeyStored : text.settings.apiKeyMissing}
             </p>
+            {apiKeyPresent && apiKeyPreview && <p className="inline-note">{apiKeyPreview}</p>}
             {autostartMessage && <p className="inline-note">{autostartMessage}</p>}
             {keyCheckMessage && <p className="inline-note">{keyCheckMessage}</p>}
             {(saveState || statusMessage) && <p className="inline-note">{saveState || statusMessage}</p>}

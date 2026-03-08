@@ -17,6 +17,38 @@ type OverlayViewProps = {
   onSettingsPatch: (patch: Partial<AppSettings>) => Promise<void>;
 };
 
+type SpeechRecognitionAlternativeLike = {
+  transcript?: string;
+};
+
+type SpeechRecognitionResultLike = {
+  0?: SpeechRecognitionAlternativeLike;
+};
+
+type SpeechRecognitionEventLike = {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+};
+
+type SpeechRecognitionLike = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type SpeechRecognitionCtorLike = new () => SpeechRecognitionLike;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionCtorLike;
+    webkitSpeechRecognition?: SpeechRecognitionCtorLike;
+  }
+}
+
 export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: OverlayViewProps) {
   const ACTIVATION_COOLDOWN_MS = 1200;
   const text = getCopy(settings.language);
@@ -54,6 +86,8 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
   const lastAppliedWindowStateRef = useRef<OverlayState | null>(null);
   const wakeTimerRef = useRef<number | null>(null);
   const activationCooldownUntilRef = useRef(0);
+  const speechRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const wakeWordTriggeredAtRef = useRef(0);
 
   const speakingSamples = useMemo(() => {
     if (overlayState === "speaking") {
@@ -96,8 +130,80 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
       if (wakeTimerRef.current !== null) {
         window.clearTimeout(wakeTimerRef.current);
       }
+
+      speechRecognitionRef.current?.stop();
+      speechRecognitionRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const SpeechRecognitionCtor = window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
+
+    if (!SpeechRecognitionCtor) {
+      return;
+    }
+
+    if (!apiKeyPresent || !isOnline || connectionState !== "disconnected") {
+      speechRecognitionRef.current?.stop();
+      speechRecognitionRef.current = null;
+      return;
+    }
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = settings.language === "ru" ? "ru-RU" : "en-US";
+
+    recognition.onresult = (event: SpeechRecognitionEventLike) => {
+      const transcript = Array.from(event.results)
+        .slice(event.resultIndex)
+        .map((result: SpeechRecognitionResultLike) => result[0]?.transcript ?? "")
+        .join(" ")
+        .trim()
+        .toLowerCase();
+
+      const wakeWord = settings.wakeWord.trim().toLowerCase();
+      if (!wakeWord || !transcript.includes(wakeWord)) {
+        return;
+      }
+
+      const now = Date.now();
+      if (now - wakeWordTriggeredAtRef.current < 1800) {
+        return;
+      }
+
+      wakeWordTriggeredAtRef.current = now;
+      void handlePrimaryAction();
+    };
+
+    recognition.onend = () => {
+      if (speechRecognitionRef.current !== recognition) {
+        return;
+      }
+
+      if (apiKeyPresent && isOnline && connectionState === "disconnected") {
+        try {
+          recognition.start();
+        } catch {
+          // Ignore restart errors silently.
+        }
+      }
+    };
+
+    try {
+      recognition.start();
+      speechRecognitionRef.current = recognition;
+    } catch {
+      speechRecognitionRef.current = null;
+    }
+
+    return () => {
+      if (speechRecognitionRef.current === recognition) {
+        speechRecognitionRef.current = null;
+      }
+      recognition.stop();
+    };
+  }, [apiKeyPresent, connectionState, isOnline, settings.language, settings.wakeWord]);
 
   useEffect(() => {
     const unlistenPromise = listen("jarvis://hotkey-activate", () => {

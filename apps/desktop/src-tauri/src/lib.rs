@@ -11,6 +11,8 @@ use serde_json::json;
 use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
 
 const SETTINGS_FILE_NAME: &str = "jarvis-settings.json";
+const SETTINGS_SNAPSHOT_FILE_NAME: &str = "jarvis-settings-snapshot.json";
+const API_KEY_FILE_NAME: &str = "jarvis-api-key.txt";
 const MEMORY_FILE_NAME: &str = "jarvis-memory-facts.json";
 const MEMORY_DB_FILE_NAME: &str = "jarvis-memory.sqlite3";
 const KEYRING_SERVICE: &str = "JarvisDesktop";
@@ -183,6 +185,20 @@ fn settings_file_path(app: &AppHandle) -> Result<PathBuf, String> {
     let mut config_dir = app.path().app_config_dir().map_err(|error| error.to_string())?;
     fs::create_dir_all(&config_dir).map_err(|error| error.to_string())?;
     config_dir.push(SETTINGS_FILE_NAME);
+    Ok(config_dir)
+}
+
+fn settings_snapshot_file_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let mut config_dir = app.path().app_config_dir().map_err(|error| error.to_string())?;
+    fs::create_dir_all(&config_dir).map_err(|error| error.to_string())?;
+    config_dir.push(SETTINGS_SNAPSHOT_FILE_NAME);
+    Ok(config_dir)
+}
+
+fn api_key_file_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let mut config_dir = app.path().app_config_dir().map_err(|error| error.to_string())?;
+    fs::create_dir_all(&config_dir).map_err(|error| error.to_string())?;
+    config_dir.push(API_KEY_FILE_NAME);
     Ok(config_dir)
 }
 
@@ -519,64 +535,96 @@ fn current_timestamp() -> u64 {
         .unwrap_or(0)
 }
 
-fn load_settings_from_disk(app: &AppHandle) -> Result<UiSettings, String> {
-    let connection = open_memory_db(app)?;
-    let profile_row = connection.query_row(
-        "SELECT language, wake_word, address_title FROM profile WHERE id = 1",
-        [],
-        |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-            ))
-        },
-    );
-
-    let preferences_row = connection.query_row(
-        "SELECT overlay_mode, input_device_id, output_device_id FROM preferences WHERE id = 1",
-        [],
-        |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-            ))
-        },
-    );
-
-    match (profile_row, preferences_row) {
-        (Ok((language, wake_word, address_title)), Ok((overlay_mode, input_device_id, output_device_id))) => Ok(sanitize_settings(UiSettings {
-            language,
-            wake_word,
-            address_title,
-            overlay_mode,
-            input_device_id,
-            output_device_id,
-        })),
-        _ => Ok(UiSettings::default()),
+fn read_settings_snapshot(app: &AppHandle) -> Result<Option<UiSettings>, String> {
+    let path = settings_snapshot_file_path(app)?;
+    if !path.exists() {
+        return Ok(None);
     }
+
+    let content = fs::read_to_string(path).map_err(|error| error.to_string())?;
+    let parsed = serde_json::from_str::<UiSettings>(&content).map_err(|error| error.to_string())?;
+    Ok(Some(sanitize_settings(parsed)))
+}
+
+fn save_settings_snapshot(app: &AppHandle, settings: &UiSettings) -> Result<(), String> {
+    let path = settings_snapshot_file_path(app)?;
+    let payload = serde_json::to_string_pretty(settings).map_err(|error| error.to_string())?;
+    fs::write(path, payload).map_err(|error| error.to_string())
+}
+
+fn load_settings_from_disk(app: &AppHandle) -> Result<UiSettings, String> {
+    if let Ok(connection) = open_memory_db(app) {
+        let profile_row = connection.query_row(
+            "SELECT language, wake_word, address_title FROM profile WHERE id = 1",
+            [],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            },
+        );
+
+        let preferences_row = connection.query_row(
+            "SELECT overlay_mode, input_device_id, output_device_id FROM preferences WHERE id = 1",
+            [],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            },
+        );
+
+        if let (Ok((language, wake_word, address_title)), Ok((overlay_mode, input_device_id, output_device_id))) = (profile_row, preferences_row) {
+            return Ok(sanitize_settings(UiSettings {
+                language,
+                wake_word,
+                address_title,
+                overlay_mode,
+                input_device_id,
+                output_device_id,
+            }));
+        }
+    }
+
+    if let Some(snapshot) = read_settings_snapshot(app)? {
+        return Ok(snapshot);
+    }
+
+    Ok(UiSettings::default())
 }
 
 fn save_settings_to_disk(app: &AppHandle, settings: &UiSettings) -> Result<(), String> {
-    let connection = open_memory_db(app)?;
-    connection
-        .execute(
-            "INSERT INTO profile (id, language, wake_word, address_title) VALUES (1, ?1, ?2, ?3)
-             ON CONFLICT(id) DO UPDATE SET language = excluded.language, wake_word = excluded.wake_word, address_title = excluded.address_title",
-            params![settings.language, settings.wake_word, settings.address_title],
-        )
-        .map_err(|error| error.to_string())?;
+    let snapshot_result = save_settings_snapshot(app, settings);
 
-    connection
-        .execute(
-            "INSERT INTO preferences (id, overlay_mode, input_device_id, output_device_id) VALUES (1, ?1, ?2, ?3)
-             ON CONFLICT(id) DO UPDATE SET overlay_mode = excluded.overlay_mode, input_device_id = excluded.input_device_id, output_device_id = excluded.output_device_id",
-            params![settings.overlay_mode, settings.input_device_id, settings.output_device_id],
-        )
-        .map_err(|error| error.to_string())?;
+    let sqlite_result: Result<(), String> = (|| {
+        let connection = open_memory_db(app)?;
+        connection
+            .execute(
+                "INSERT INTO profile (id, language, wake_word, address_title) VALUES (1, ?1, ?2, ?3)
+                 ON CONFLICT(id) DO UPDATE SET language = excluded.language, wake_word = excluded.wake_word, address_title = excluded.address_title",
+                params![settings.language, settings.wake_word, settings.address_title],
+            )
+            .map_err(|error| error.to_string())?;
 
-    Ok(())
+        connection
+            .execute(
+                "INSERT INTO preferences (id, overlay_mode, input_device_id, output_device_id) VALUES (1, ?1, ?2, ?3)
+                 ON CONFLICT(id) DO UPDATE SET overlay_mode = excluded.overlay_mode, input_device_id = excluded.input_device_id, output_device_id = excluded.output_device_id",
+                params![settings.overlay_mode, settings.input_device_id, settings.output_device_id],
+            )
+            .map_err(|error| error.to_string())?;
+
+        Ok(())
+    })();
+
+    match (snapshot_result, sqlite_result) {
+        (Ok(()), _) | (_, Ok(())) => Ok(()),
+        (Err(snapshot_error), Err(sqlite_error)) => Err(format!("Не удалось сохранить настройки. snapshot: {}; sqlite: {}", snapshot_error, sqlite_error)),
+    }
 }
 
 fn api_key_entry() -> Result<keyring::Entry, String> {
@@ -616,13 +664,47 @@ fn read_api_key_from_dotenv() -> Option<String> {
     None
 }
 
-fn hydrate_api_key_from_fallbacks() -> Result<(), String> {
+fn read_api_key_from_disk(app: &AppHandle) -> Result<Option<String>, String> {
+    let path = api_key_file_path(app)?;
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let content = fs::read_to_string(path).map_err(|error| error.to_string())?;
+    let trimmed = content.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(trimmed.to_string()))
+}
+
+fn save_api_key_to_disk(app: &AppHandle, api_key: &str) -> Result<(), String> {
+    let path = api_key_file_path(app)?;
+    fs::write(path, api_key.trim()).map_err(|error| error.to_string())
+}
+
+fn mask_api_key(value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.len() <= 10 {
+        return "**********".to_string();
+    }
+
+    format!("{}...{}", &trimmed[..8], &trimmed[trimmed.len() - 4..])
+}
+
+fn hydrate_api_key_from_fallbacks(app: &AppHandle) -> Result<(), String> {
     let entry = api_key_entry()?;
 
     if let Ok(value) = entry.get_password() {
         if !value.trim().is_empty() {
             return Ok(());
         }
+    }
+
+    if let Some(value) = read_api_key_from_disk(app)? {
+        let _ = entry.set_password(&value);
+        return Ok(());
     }
 
     let fallback = env::var("OPENAI_API_KEY")
@@ -632,13 +714,14 @@ fn hydrate_api_key_from_fallbacks() -> Result<(), String> {
         .or_else(read_api_key_from_dotenv);
 
     if let Some(value) = fallback {
-        entry.set_password(&value).map_err(|error| error.to_string())?;
+        let _ = entry.set_password(&value);
+        save_api_key_to_disk(app, &value)?;
     }
 
     Ok(())
 }
 
-fn load_api_key() -> Result<String, String> {
+fn load_api_key(app: &AppHandle) -> Result<String, String> {
     let entry = api_key_entry()?;
 
     if let Ok(value) = entry.get_password() {
@@ -646,6 +729,11 @@ fn load_api_key() -> Result<String, String> {
         if !trimmed.is_empty() {
             return Ok(trimmed.to_string());
         }
+    }
+
+    if let Some(value) = read_api_key_from_disk(app)? {
+        let _ = entry.set_password(&value);
+        return Ok(value);
     }
 
     if let Ok(value) = env::var("OPENAI_API_KEY") {
@@ -772,25 +860,41 @@ fn save_settings(app: AppHandle, settings: UiSettings) -> Result<UiSettings, Str
 }
 
 #[tauri::command]
-fn api_key_status() -> Result<bool, String> {
-    Ok(load_api_key().map(|value| !value.trim().is_empty()).unwrap_or(false))
+fn api_key_status(app: AppHandle) -> Result<bool, String> {
+    Ok(load_api_key(&app).map(|value| !value.trim().is_empty()).unwrap_or(false))
 }
 
 #[tauri::command]
-fn save_api_key(api_key: String) -> Result<(), String> {
+fn api_key_preview(app: AppHandle) -> Result<Option<String>, String> {
+    match load_api_key(&app) {
+        Ok(value) if !value.trim().is_empty() => Ok(Some(mask_api_key(&value))),
+        Ok(_) => Ok(None),
+        Err(_) => Ok(None),
+    }
+}
+
+#[tauri::command]
+fn save_api_key(app: AppHandle, api_key: String) -> Result<(), String> {
     let trimmed = api_key.trim();
     if trimmed.is_empty() {
         return Err("API key cannot be empty".to_string());
     }
 
-    api_key_entry()?
-        .set_password(trimmed)
-        .map_err(|error| error.to_string())
+    let keyring_result = api_key_entry()?.set_password(trimmed).map_err(|error| error.to_string());
+    let disk_result = save_api_key_to_disk(&app, trimmed);
+
+    match (keyring_result, disk_result) {
+        (Ok(_), Ok(_)) | (Ok(_), Err(_)) | (Err(_), Ok(_)) => Ok(()),
+        (Err(keyring_error), Err(disk_error)) => Err(format!(
+            "Не удалось сохранить ключ ни в keyring, ни в локальное хранилище: {}; {}",
+            keyring_error, disk_error
+        )),
+    }
 }
 
 #[tauri::command]
-fn create_realtime_session(offer_sdp: String) -> Result<RealtimeSessionInitResult, String> {
-    let key = load_api_key()?;
+fn create_realtime_session(app: AppHandle, offer_sdp: String) -> Result<RealtimeSessionInitResult, String> {
+    let key = load_api_key(&app)?;
 
     if key.trim().is_empty() {
         return Err("Ключ пустой. Сохраните его в настройках или передайте через OPENAI_API_KEY.".to_string());
@@ -864,8 +968,8 @@ fn create_realtime_session(offer_sdp: String) -> Result<RealtimeSessionInitResul
 }
 
 #[tauri::command]
-fn verify_api_key() -> Result<ApiKeyCheckResult, String> {
-    let key = load_api_key()?;
+fn verify_api_key(app: AppHandle) -> Result<ApiKeyCheckResult, String> {
+    let key = load_api_key(&app)?;
 
     if key.trim().is_empty() {
         return Ok(ApiKeyCheckResult {
@@ -902,8 +1006,8 @@ fn verify_api_key() -> Result<ApiKeyCheckResult, String> {
 }
 
 #[tauri::command]
-fn search_web(query: String, intent: Option<String>) -> Result<SearchWebResult, String> {
-    let key = load_api_key()?;
+fn search_web(app: AppHandle, query: String, intent: Option<String>) -> Result<SearchWebResult, String> {
+    let key = load_api_key(&app)?;
 
     if key.trim().is_empty() {
         return Err("Ключ пустой. Сохраните его в настройках или передайте через OPENAI_API_KEY.".to_string());
@@ -1135,7 +1239,7 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            hydrate_api_key_from_fallbacks()?;
+            hydrate_api_key_from_fallbacks(&app.handle().clone())?;
             app.handle().plugin(
                 tauri_plugin_global_shortcut::Builder::new()
                     .with_shortcuts([GLOBAL_ACTIVATION_SHORTCUT])?
@@ -1159,6 +1263,7 @@ pub fn run() {
             load_settings,
             save_settings,
             api_key_status,
+            api_key_preview,
             save_api_key,
             verify_api_key,
             create_realtime_session,

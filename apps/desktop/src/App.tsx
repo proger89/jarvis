@@ -12,6 +12,7 @@ function App() {
   const [windowMode, setWindowMode] = useState<WindowMode>("unknown");
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [apiKeyPresent, setApiKeyPresent] = useState(false);
+  const [apiKeyPreview, setApiKeyPreview] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
 
@@ -33,13 +34,15 @@ function App() {
   useEffect(() => {
     async function bootstrap() {
       try {
-        const [storedSettings, storedApiKey] = await Promise.all([
+        const [storedSettings, storedApiKey, storedApiKeyPreview] = await Promise.all([
           invoke<AppSettings>("load_settings"),
           invoke<boolean>("api_key_status"),
+          invoke<string | null>("api_key_preview"),
         ]);
 
         setSettings(storedSettings);
         setApiKeyPresent(storedApiKey);
+        setApiKeyPreview(storedApiKeyPreview);
       } catch {
         setStatusMessage("Не удалось загрузить настройки.");
       } finally {
@@ -58,6 +61,7 @@ function App() {
     if (apiKeyDraft.trim()) {
       await invoke("save_api_key", { apiKey: apiKeyDraft.trim() });
       setApiKeyPresent(true);
+      setApiKeyPreview(await invoke<string | null>("api_key_preview"));
     }
 
     setSettings(savedSettings);
@@ -83,6 +87,7 @@ function App() {
     return (
       <SettingsView
         apiKeyPresent={apiKeyPresent}
+        apiKeyPreview={apiKeyPreview}
         onSave={handleSave}
         settings={settings}
         statusMessage={statusMessage}
