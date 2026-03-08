@@ -637,6 +637,15 @@ fn show_settings_window(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn hide_settings_window(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("settings") {
+        window.hide().map_err(|error| error.to_string())?;
+    }
+
+    Ok(())
+}
+
 fn build_tray(app: &AppHandle) -> Result<(), String> {
     let menu = MenuBuilder::new(app)
         .text("show_overlay", "Show Overlay")
@@ -1086,6 +1095,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             show_settings_window,
+            hide_settings_window,
             load_settings,
             save_settings,
             api_key_status,

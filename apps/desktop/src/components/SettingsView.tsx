@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { disable as disableAutostart, enable as enableAutostart, isEnabled as isAutostartEnabled } from "@tauri-apps/plugin-autostart";
 import { getCopy } from "../lib/copy";
 import type { AppLanguage, AppSettings, OverlayMode } from "../types/settings";
@@ -215,7 +214,7 @@ export function SettingsView({
   }, [text.settings.memoryLoadFailed]);
 
   async function closeWindow() {
-    await getCurrentWindow().hide();
+    await invoke("hide_settings_window");
   }
 
   async function handleSave() {
@@ -232,7 +231,6 @@ export function SettingsView({
         },
         apiKeyDraft,
       );
-      setApiKeyDraft("");
       setSaveState(language === "ru" ? "Изменения сохранены." : "Changes saved.");
     } catch {
       setSaveState(language === "ru" ? "Не удалось сохранить настройки." : "Failed to save settings.");
@@ -255,7 +253,6 @@ export function SettingsView({
           },
           apiKeyDraft,
         );
-        setApiKeyDraft("");
       }
 
       const result = await invoke<ApiKeyCheckResult>("verify_api_key");
