@@ -18,13 +18,18 @@ type OverlayViewProps = {
 
 export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: OverlayViewProps) {
   const text = getCopy(settings.language);
+  const isDevBuild = import.meta.env.DEV;
   const overlayWindow = getCurrentWindow();
   const { level, permission, samples, start, stop } = useAudioWaveform(settings.inputDeviceId);
   const {
     connectionState,
     remoteAudioLevel,
+    lastError,
     lastEventType,
     activeToolName,
+    userSubtitle,
+    assistantSubtitle,
+    toolSummary,
     pendingOpenRequest,
     startSession,
     interruptResponse,
@@ -123,13 +128,15 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
 
       if (event.code === "Backquote") {
         event.preventDefault();
-        setShowDebugControls((current) => !current);
+        if (isDevBuild) {
+          setShowDebugControls((current) => !current);
+        }
       }
     }
 
     window.addEventListener("keydown", handleKeys);
     return () => window.removeEventListener("keydown", handleKeys);
-  });
+  }, [isDevBuild]);
 
   useEffect(() => {
     const now = Date.now();
@@ -284,36 +291,75 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
           </section>
         )}
 
-        {showDebugControls && (
-          <div className="hud-dev-strip">
-            <button className="hud-dev-button" onClick={() => transitionTo("idle")} type="button">
-              {text.overlay.devIdle}
-            </button>
-            <button className="hud-dev-button" onClick={() => transitionTo("listening")} type="button">
-              {text.overlay.devListening}
-            </button>
-            <button className="hud-dev-button" onClick={() => transitionTo("thinking")} type="button">
-              {text.overlay.devThinking}
-            </button>
-            <button className="hud-dev-button" onClick={() => transitionTo("speaking")} type="button">
-              {text.overlay.devSpeaking}
-            </button>
-            <button className="hud-dev-button" onClick={handleReset} type="button">
-              {text.overlay.devReset}
-            </button>
-            <button className="hud-dev-button" onClick={() => void start()} type="button">
-              {text.overlay.devMicOn}
-            </button>
-            <button className="hud-dev-button" onClick={stop} type="button">
-              {text.overlay.devMicOff}
-            </button>
-            <button className="hud-dev-button" onClick={() => void startSession()} type="button">
-              {text.overlay.devLiveOn}
-            </button>
-            <button className="hud-dev-button" onClick={stopSession} type="button">
-              {text.overlay.devLiveOff}
-            </button>
-          </div>
+        {isDevBuild && showDebugControls && (
+          <aside className="hud-debug-console">
+            <div className="hud-debug-grid">
+              <div>
+                <span>Overlay</span>
+                <strong>{overlayState}</strong>
+              </div>
+              <div>
+                <span>Connection</span>
+                <strong>{connectionState}</strong>
+              </div>
+              <div>
+                <span>Permission</span>
+                <strong>{permission}</strong>
+              </div>
+              <div>
+                <span>Event</span>
+                <strong>{lastEventType || "idle"}</strong>
+              </div>
+              <div>
+                <span>Remote level</span>
+                <strong>{remoteAudioLevel.toFixed(3)}</strong>
+              </div>
+              <div>
+                <span>Input level</span>
+                <strong>{level.toFixed(3)}</strong>
+              </div>
+            </div>
+
+            {(lastError || activeToolName || toolSummary || userSubtitle || assistantSubtitle) && (
+              <div className="hud-debug-log">
+                {lastError && <p>Error: {lastError}</p>}
+                {activeToolName && <p>Tool: {activeToolName}</p>}
+                {toolSummary && <p>Tool summary: {toolSummary}</p>}
+                {userSubtitle && <p>You: {userSubtitle}</p>}
+                {assistantSubtitle && <p>Jarvis: {assistantSubtitle}</p>}
+              </div>
+            )}
+
+            <div className="hud-dev-strip">
+              <button className="hud-dev-button" onClick={() => transitionTo("idle")} type="button">
+                {text.overlay.devIdle}
+              </button>
+              <button className="hud-dev-button" onClick={() => transitionTo("listening")} type="button">
+                {text.overlay.devListening}
+              </button>
+              <button className="hud-dev-button" onClick={() => transitionTo("thinking")} type="button">
+                {text.overlay.devThinking}
+              </button>
+              <button className="hud-dev-button" onClick={() => transitionTo("speaking")} type="button">
+                {text.overlay.devSpeaking}
+              </button>
+              <button className="hud-dev-button" onClick={handleReset} type="button">
+                {text.overlay.devReset}
+              </button>
+              <button className="hud-dev-button" onClick={() => void start()} type="button">
+                {text.overlay.devMicOn}
+              </button>
+              <button className="hud-dev-button" onClick={stop} type="button">
+                {text.overlay.devMicOff}
+              </button>
+              <button className="hud-dev-button" onClick={() => void startSession()} type="button">
+                {text.overlay.devLiveOn}
+              </button>
+              <button className="hud-dev-button" onClick={stopSession} type="button">
+                {text.overlay.devLiveOff}
+              </button>
+            </div>
+          </aside>
         )}
       </section>
     </main>

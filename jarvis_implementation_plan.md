@@ -21,6 +21,8 @@
 - `[done]` Есть native settings persistence для языка, wake word и обращения к пользователю
 - `[done]` Есть secure API key storage через native keyring
 - `[done]` Есть базовый RU/EN UI switching
+- `[done]` Есть compact centered overlay с центральным helmet-визуалом и боковыми wave ribbons
+- `[done]` Есть SQLite-backed local memory, session summaries и tool/device audit
 
 ## 1. Целевая V1-конфигурация
 
@@ -78,7 +80,7 @@ Definition of done:
 - `[done]` Инициализировать React + TypeScript + Vite frontend
 - `[done]` Добавить Rust backend scaffold
 - `[done]` Настроить package manager, scripts, dev/build pipeline
-- `[in-progress]` Добавить базовые папки по agreed architecture
+- `[done]` Добавить базовые папки по agreed architecture
 - `[done]` Настроить desktop shortcut-friendly packaged build
 - `[done]` Добавить tray icon skeleton
 
@@ -127,11 +129,11 @@ Definition of done:
 - `[done]` Реализовать прозрачное always-on-top overlay window
 - `[done]` Реализовать click-through для idle mode
 - `[done]` Реализовать settings window
-- `[not-done]` Реализовать dev-only debug console
+- `[done]` Реализовать dev-only debug console
 - `[in-progress]` Добавить базовую state machine: `idle`, `wake`, `listening`, `thinking`, `speaking`, `tool`, `error`
-- `[done]` Добавить cinematic speaking HUD с центральной mask-композицией
+- `[done]` Добавить cinematic speaking HUD с центральной helmet-композицией
 - `[done]` Добавить отдельные HUD-состояния `idle / listening / thinking / speaking`
-- `[done]` Развести compact idle overlay и expanded active overlay
+- `[done]` Развести compact centered overlay для idle/active режимов без fullscreen chrome в основном UX
 
 Definition of done:
 - Overlay живет отдельно от settings
@@ -140,9 +142,10 @@ Definition of done:
 
 Текущее состояние phase:
 - `[in-progress]` Визуальный shell уже оформлен в cinematic HUD-направлении
-- `[done]` Есть полноэкранный speaking overlay с центральной mask-композицией
+- `[done]` Есть компактный centered overlay с центральной helmet-композицией и волнами по бокам
 - `[done]` Реальные runtime-состояния `idle / listening / thinking / speaking` уже подключены в overlay
 - `[done]` Idle behavior переведен в компактный click-through режим
+- `[done]` Есть dev-only debug console, вызываемая только в dev-сборке
 - `[in-progress]` `tool / error` состояния уже разведены, `wake` еще не добавлен отдельно
 
 ### Phase 4 — audio pipeline
@@ -154,7 +157,7 @@ Definition of done:
 - `[in-progress]` Подключить playback path для remote audio
 - `[done]` Добавить Web Audio analyser
 - `[in-progress]` Реализовать waveform из реального output audio
-- `[not-done]` Обработать mute, device switch и fallback states
+- `[in-progress]` Обработать mute, device switch и fallback states
 
 Definition of done:
 - Микрофон и output devices выбираются из UI
@@ -164,7 +167,7 @@ Definition of done:
 - `[in-progress]` Реальная waveform уже работает от input audio через Web Audio analyser
 - `[done]` HUD больше не использует полностью декоративные волны
 - `[in-progress]` Output audio binding от Realtime remote stream уже заведен через WebRTC track playback
-- `[in-progress]` Device picker уже подключен, но output switching еще не привязан к живому воспроизведению
+- `[in-progress]` Device picker уже подключен, output sink selection пробуется через `setSinkId`, а hotplug fallback уже откатывает устройство к `default`
 
 ### Phase 5 — realtime voice session
 Цель: получить рабочий speech-to-speech диалог.
@@ -200,11 +203,11 @@ Definition of done:
 Цель: довести продукт до целевого характера.
 
 Задачи:
-- `[not-done]` Встроить persona prompt как системную идентичность
+- `[done]` Встроить persona prompt как системную идентичность
 - `[not-done]` Реализовать приветствия и короткие spoken replies
-- `[not-done]` Добавить cinematic overlay states
-- `[not-done]` Реализовать карточки субтитров и status badges
-- `[not-done]` Поддержать настраиваемое обращение к пользователю
+- `[done]` Добавить cinematic overlay states
+- `[in-progress]` Реализовать карточки субтитров и status badges
+- `[done]` Поддержать настраиваемое обращение к пользователю
 
 Definition of done:
 - Ассистент говорит коротко и последовательно в стиле JARVIS
@@ -245,7 +248,7 @@ Definition of done:
 - `[done]` Подключены первые реальные tools: `list_audio_devices`, `switch_microphone`, `switch_output_device`
 - `[in-progress]` `open_url` уже подключен через confirm flow перед открытием ссылки
 - `[in-progress]` Native `search_web` уже ходит в Responses API и возвращает summary + источники
-- `[in-progress]` Overlay уже показывает кликабельные source cards для результатов web search
+- `[in-progress]` Overlay уже умеет показывать source cards и confirm flow, но в текущем минимальном centered UX эти панели не являются основным визуальным режимом
 - `[in-progress]` Native memory tools уже умеют сохранять и искать простые факты в локальном store
 - `[not-done]` Полноценный Rust tool broker и screen/memory expansion еще не добавлены
 
@@ -254,7 +257,7 @@ Definition of done:
 
 Задачи:
 - `[done]` Подключить SQLite
-- `[in-progress]` Создать таблицы `profile`, `preferences`, `memory_facts`, `session_summaries`, `tool_audit_log`, `device_history`
+- `[done]` Создать таблицы `profile`, `preferences`, `memory_facts`, `session_summaries`, `tool_audit_log`, `device_history`
 - `[in-progress]` Реализовать rolling summaries
 - `[done]` Реализовать explicit facts store
 - `[in-progress]` Добавить `forget me` control в settings
@@ -281,7 +284,7 @@ Definition of done:
 Задачи:
 - `[done]` Реализовать tray icon
 - `[not-done]` Реализовать auto-start
-- `[not-done]` Реализовать multi-monitor aware overlay positioning
+- `[done]` Реализовать multi-monitor aware overlay positioning
 - `[in-progress]` Переживать device hotplug без перезапуска
 - `[in-progress]` Добавить reconnect with backoff
 - `[in-progress]` Добавить fallback states для invalid key, denied mic, dropped network, unstable wake word
@@ -304,7 +307,7 @@ Definition of done:
 Задачи:
 - `[done]` Настроить production build для Windows
 - `[done]` Проверить packaged app launch вне dev-среды
-- `[not-done]` Подготовить иконки, shortcut и installer flow
+- `[in-progress]` Подготовить иконки, shortcut и installer flow
 - `[not-done]` Проверить первый-run UX: ключ, устройства, тест голоса, wake word
 
 Definition of done:
@@ -315,7 +318,8 @@ Definition of done:
 - `[done]` `npm --prefix apps/desktop run tauri build` реально собирает Windows bundles: MSI и NSIS
 - `[done]` Release executable реально стартует вне dev-сервера
 - `[done]` NSIS silent install в temp-каталог проходит, и установленный exe реально стартует
-- `[not-done]` Shortcut, installer UX и onboarding smoke еще не подтверждены
+- `[in-progress]` NSIS installer path уже подтвержден, но shortcut и интерактивный installer UX еще не подтверждены
+- `[not-done]` Onboarding smoke после установки еще не подтвержден
 
 ## 4. Что уже сделано по факту
 
@@ -330,31 +334,33 @@ Definition of done:
 - `[done]` Native settings persistence
 - `[done]` Secure key storage
 - `[done]` RU/EN language switching
+- `[done]` SQLite persistence для profile/preferences/memory/audit
+- `[done]` Compact centered overlay с helmet-визуалом
+- `[done]` Dev-only debug console для overlay
 
 Следующие этапы все еще остаются в статусе:
-- `[in-progress]` Secrets/config persistence
-- `[not-done]` Audio pipeline
-- `[not-done]` Realtime voice
+- `[done]` Secrets/config persistence
+- `[in-progress]` Audio pipeline
+- `[in-progress]` Realtime voice
 - `[not-done]` Wake word
-- `[not-done]` Tools/web search
-- `[not-done]` Local memory
-- `[not-done]` Windows integration polish
-- `[not-done]` Packaging and release readiness
+- `[in-progress]` Tools/web search
+- `[in-progress]` Local memory
+- `[in-progress]` Windows integration polish
+- `[in-progress]` Packaging and release readiness
 
 ## 5. Что делать следующим шагом
 
 Следующий исполнимый шаг по порядку:
-- `[next]` Закрыть остаток Phase 2: verify flow для API key и настройки audio devices
-- `[next]` Затем перейти в Phase 3 и Phase 4: overlay state machine и audio pipeline
+- `[next]` Закрыть остатки overlay state machine
+- `[next]` Затем добить output audio / fallback path и подтвердить end-to-end Realtime voice session
 
 ## 6. Критерии приемки MVP
 
 MVP можно считать достигнутым, когда выполнены одновременно следующие пункты:
-- `[not-done]` Есть безопасное хранение API key
 - `[done]` Есть безопасное хранение API key
 - `[not-done]` Работает Realtime voice dialog
 - `[not-done]` Есть overlay с живой волной от реального output audio
 - `[not-done]` Есть wake word или hotkey activation
 - `[not-done]` Есть web search tool с источниками
-- `[not-done]` Есть fallback UX для типовых ошибок
+- `[in-progress]` Есть fallback UX для типовых ошибок
 - `[done]` Собран Windows desktop build, запускаемый двойным кликом
