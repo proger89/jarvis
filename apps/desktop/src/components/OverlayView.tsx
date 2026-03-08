@@ -7,6 +7,7 @@ import type { AppSettings } from "../types/settings";
 import { JarvisMask } from "./JarvisMask";
 import { WaveRibbon } from "./WaveRibbon";
 import { useAudioWaveform } from "../hooks/useAudioWaveform";
+import { useRealtimeSession } from "../hooks/useRealtimeSession";
 import type { OverlayState } from "../types/overlay";
 
 type OverlayViewProps = {
@@ -18,24 +19,36 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
   const text = getCopy(settings.language);
   const overlayWindow = getCurrentWindow();
   const { level, permission, samples, start, stop } = useAudioWaveform(settings.inputDeviceId);
+  const { connectionState, remoteAudioLevel, lastError, lastEventType, startSession, stopSession } =
+    useRealtimeSession({
+      inputDeviceId: settings.inputDeviceId,
+      outputDeviceId: settings.outputDeviceId,
+    });
   const [overlayState, setOverlayState] = useState<OverlayState>("idle");
   const [showDebugControls, setShowDebugControls] = useState(false);
   const stateChangedAtRef = useRef(Date.now());
   const heardVoiceRef = useRef(false);
   const lastVoiceAtRef = useRef(0);
+  const lastRemoteVoiceAtRef = useRef(0);
   const lastAppliedWindowStateRef = useRef<OverlayState | null>(null);
 
   const speakingSamples = useMemo(() => {
+    const activeLevel = overlayState === "speaking" ? Math.max(level, remoteAudioLevel) : level;
     const speakerBase = overlayState === "speaking" ? 0.22 : overlayState === "thinking" ? 0.1 : 0;
     return samples.map((sample, index) => {
       const motion = overlayState === "speaking" ? Math.abs(Math.sin(Date.now() / 250 + index * 0.55)) * 0.18 : 0;
-      return Math.min(1, sample + speakerBase + motion);
+      const remoteLift = overlayState === "speaking" ? activeLevel * 0.5 : 0;
+      return Math.min(1, sample + speakerBase + motion + remoteLift);
     });
-  }, [overlayState, samples]);
+  }, [level, overlayState, remoteAudioLevel, samples]);
 
   const systemBadges = [
     text.overlay.stateBadge[overlayState],
-    permission === "granted" ? text.overlay.badgeLowLatency : text.overlay.badgeMicRequired,
+    connectionState === "connected"
+      ? text.overlay.badgeLiveConnection
+      : permission === "granted"
+        ? text.overlay.badgeLowLatency
+        : text.overlay.badgeMicRequired,
     settings.wakeWord,
     apiKeyPresent ? text.overlay.badgeSearchReady : text.overlay.badgeSecureKeyPending,
   ];
@@ -124,13 +137,45 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
   });
 
   useEffect(() => {
-    if (permission !== "granted") {
-      return;
-    }
-
     const now = Date.now();
     const speechThreshold = 0.1;
     const silenceThreshold = 0.045;
+
+    if (connectionState === "connecting") {
+      transitionTo("thinking");
+      return;
+    }
+
+    if (connectionState === "error") {
+      transitionTo("idle");
+      return;
+    }
+
+    if (connectionState === "disconnected") {
+      if (overlayState !== "idle") {
+        transitionTo("idle");
+      }
+      return;
+    }
+
+    if (lastEventType === "response.created") {
+      transitionTo("thinking");
+    }
+
+    if (remoteAudioLevel > 0.028) {
+      lastRemoteVoiceAtRef.current = now;
+      transitionTo("speaking");
+      return;
+    }
+
+    if (overlayState === "speaking" && now - lastRemoteVoiceAtRef.current > 900) {
+      transitionTo("listening");
+      return;
+    }
+
+    if (permission !== "granted") {
+      return;
+    }
 
     if (overlayState === "listening") {
       if (level > speechThreshold) {
@@ -143,15 +188,10 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
       }
     }
 
-    if (overlayState === "thinking" && now - stateChangedAtRef.current > 1300) {
-      transitionTo("speaking");
+    if (connectionState === "connected" && overlayState === "idle") {
+      transitionTo("listening");
     }
-
-    if (overlayState === "speaking" && now - stateChangedAtRef.current > 2600) {
-      heardVoiceRef.current = false;
-      transitionTo("idle");
-    }
-  }, [level, overlayState, permission]);
+  }, [connectionState, lastEventType, level, overlayState, permission, remoteAudioLevel]);
 
   function transitionTo(nextState: OverlayState) {
     stateChangedAtRef.current = Date.now();
@@ -159,18 +199,31 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
   }
 
   async function handlePrimaryAction() {
+    if (!apiKeyPresent) {
+      return;
+    }
+
+    if (connectionState === "connected" || connectionState === "connecting") {
+      stopSession();
+      heardVoiceRef.current = false;
+      lastVoiceAtRef.current = 0;
+      transitionTo("idle");
+      return;
+    }
+
     if (permission !== "granted") {
       await start();
     }
 
     heardVoiceRef.current = false;
     lastVoiceAtRef.current = 0;
-    transitionTo(overlayState === "idle" ? "listening" : "idle");
+    await startSession();
   }
 
   function handleReset() {
     heardVoiceRef.current = false;
     lastVoiceAtRef.current = 0;
+    stopSession();
     transitionTo("idle");
   }
 
@@ -202,11 +255,13 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
             <p className="speaking-subtitle">
               {settings.addressTitle}, {text.overlay.hudSubtitle}
             </p>
-            <p className="hud-status-line">{stateConfig.description}</p>
+            <p className="hud-status-line">{lastError || stateConfig.description}</p>
           </div>
           <div className="hud-top-actions">
             <button className="hud-primary-action" onClick={() => void handlePrimaryAction()} type="button">
-              {overlayState === "idle" ? text.overlay.activateVoice : text.overlay.pauseVoice}
+              {connectionState === "connected" || connectionState === "connecting"
+                ? text.overlay.pauseVoice
+                : text.overlay.activateVoice}
             </button>
             <button className="hud-settings-button" onClick={openSettings} type="button">
               {text.overlay.openSettings}
@@ -224,7 +279,7 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
             <div className="mask-glow mask-glow-amber" />
             <div className="mask-target-ring mask-target-ring-outer" />
             <div className="mask-target-ring mask-target-ring-inner" />
-            <JarvisMask audioLevel={level} state={overlayState} />
+            <JarvisMask audioLevel={Math.max(level, remoteAudioLevel)} state={overlayState} />
             <div className="mask-caption-panel">
               <span className="mask-caption-label">{stateConfig.label}</span>
               <strong className="mask-caption-value">{stateConfig.headline}</strong>
@@ -267,6 +322,12 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
             </button>
             <button className="hud-dev-button" onClick={stop} type="button">
               {text.overlay.devMicOff}
+            </button>
+            <button className="hud-dev-button" onClick={() => void startSession()} type="button">
+              {text.overlay.devLiveOn}
+            </button>
+            <button className="hud-dev-button" onClick={stopSession} type="button">
+              {text.overlay.devLiveOff}
             </button>
           </div>
         )}

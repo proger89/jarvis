@@ -5,10 +5,14 @@ use tauri::{
 };
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
+use serde_json::json;
 
 const SETTINGS_FILE_NAME: &str = "jarvis-settings.json";
 const KEYRING_SERVICE: &str = "JarvisDesktop";
 const KEYRING_USERNAME: &str = "openai_api_key";
+const REALTIME_MODEL: &str = "gpt-realtime";
+const REALTIME_VOICE: &str = "marin";
+const REALTIME_INSTRUCTIONS: &str = include_str!("../../../../jarvis_persona_prompt.txt");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,6 +30,14 @@ struct UiSettings {
 struct ApiKeyCheckResult {
     ok: bool,
     message: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RealtimeClientSecret {
+    value: String,
+    model: String,
+    voice: String,
 }
 
 impl Default for UiSettings {
@@ -227,6 +239,66 @@ fn save_api_key(api_key: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn create_realtime_client_secret() -> Result<RealtimeClientSecret, String> {
+    let key = api_key_entry()?
+        .get_password()
+        .map_err(|_| "Ключ не найден. Сначала сохраните его в настройках.".to_string())?;
+
+    if key.trim().is_empty() {
+        return Err("Ключ пустой. Сначала сохраните его в настройках.".to_string());
+    }
+
+    let client = reqwest::blocking::Client::builder()
+        .build()
+        .map_err(|error| error.to_string())?;
+
+    let body = json!({
+        "session": {
+            "type": "realtime",
+            "model": REALTIME_MODEL,
+            "instructions": REALTIME_INSTRUCTIONS,
+            "audio": {
+                "output": {
+                    "voice": REALTIME_VOICE
+                }
+            }
+        }
+    });
+
+    let response = client
+        .post("https://api.openai.com/v1/realtime/client_secrets")
+        .bearer_auth(key.trim())
+        .json(&body)
+        .send()
+        .map_err(|error| error.to_string())?;
+
+    let status = response.status();
+    let payload: serde_json::Value = response.json().map_err(|error| error.to_string())?;
+
+    if !status.is_success() {
+        let message = payload
+            .get("error")
+            .and_then(|error| error.get("message"))
+            .and_then(|message| message.as_str())
+            .unwrap_or("Не удалось начать голосовой сеанс.")
+            .to_string();
+        return Err(message);
+    }
+
+    let value = payload
+        .get("value")
+        .and_then(|value| value.as_str())
+        .ok_or_else(|| "Сервис не вернул временный ключ для разговора.".to_string())?
+        .to_string();
+
+    Ok(RealtimeClientSecret {
+        value,
+        model: REALTIME_MODEL.to_string(),
+        voice: REALTIME_VOICE.to_string(),
+    })
+}
+
+#[tauri::command]
 fn verify_api_key() -> Result<ApiKeyCheckResult, String> {
     let key = api_key_entry()?
         .get_password()
@@ -281,7 +353,8 @@ pub fn run() {
             save_settings,
             api_key_status,
             save_api_key,
-            verify_api_key
+            verify_api_key,
+            create_realtime_client_secret
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

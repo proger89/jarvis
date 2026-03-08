@@ -151,7 +151,7 @@ Definition of done:
 Задачи:
 - `[done]` Реализовать выбор input/output devices
 - `[done]` Подключить `getUserMedia` и input meter
-- `[not-done]` Подключить playback path для remote audio
+- `[in-progress]` Подключить playback path для remote audio
 - `[done]` Добавить Web Audio analyser
 - `[in-progress]` Реализовать waveform из реального output audio
 - `[not-done]` Обработать mute, device switch и fallback states
@@ -163,18 +163,18 @@ Definition of done:
 Текущее состояние phase:
 - `[in-progress]` Реальная waveform уже работает от input audio через Web Audio analyser
 - `[done]` HUD больше не использует полностью декоративные волны
-- `[not-done]` Output audio binding от Realtime remote stream еще не подключен
+- `[in-progress]` Output audio binding от Realtime remote stream уже заведен через WebRTC track playback
 - `[in-progress]` Device picker уже подключен, но output switching еще не привязан к живому воспроизведению
 
 ### Phase 5 — realtime voice session
 Цель: получить рабочий speech-to-speech диалог.
 
 Задачи:
-- `[not-done]` Реализовать `RTCPeerConnection` на frontend
-- `[not-done]` Реализовать Rust command для session init через `/v1/realtime/calls`
+- `[done]` Реализовать `RTCPeerConnection` на frontend
+- `[in-progress]` Реализовать Rust command для session init через `/v1/realtime/calls`
 - `[not-done]` Подать persona prompt в session instructions
 - `[not-done]` Настроить базовый session config для `gpt-realtime`
-- `[not-done]` Обработать transcript/datachannel events
+- `[in-progress]` Обработать transcript/datachannel events
 - `[not-done]` Подключить subtitles и VAD-driven state changes
 - `[not-done]` Поддержать interruption / barge-in
 
@@ -182,6 +182,12 @@ Definition of done:
 - Голосовой диалог работает end-to-end
 - Пользователь может перебить ответ голосом
 - Overlay показывает listening/thinking/speaking без долгой тишины
+
+Текущее состояние phase:
+- `[in-progress]` Frontend уже поднимает WebRTC peer connection и remote audio playback
+- `[in-progress]` Native side уже выдает временный ключ для Realtime session
+- `[in-progress]` Overlay уже реагирует на живое соединение и на уровень звука ответа
+- `[not-done]` Полный end-to-end голосовой диалог еще не подтвержден с реальным API key и рабочей сессией
 
 ### Phase 6 — Jarvis identity and UX polish
 Цель: довести продукт до целевого характера.
