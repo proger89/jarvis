@@ -6,112 +6,94 @@ type JarvisMaskProps = {
 };
 
 export function JarvisMask({ audioLevel, state }: JarvisMaskProps) {
-  const eyeScale = 1 + audioLevel * 0.18;
+  const eyeScale = 1 + audioLevel * 0.12;
   const shellClassName = `jarvis-mask state-${state}`;
 
   return (
     <svg
       aria-label="Jarvis center mask"
       className={shellClassName}
-      viewBox="0 0 340 520"
+      viewBox="0 0 380 540"
       fill="none"
       role="img"
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        <linearGradient id="mask-shell-gradient" x1="170" y1="18" x2="170" y2="490" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#0c85a7" />
-          <stop offset="0.45" stopColor="#063f58" />
-          <stop offset="1" stopColor="#021b2a" />
+        <linearGradient id="helmet-shell-red" x1="190" y1="20" x2="190" y2="520" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#ff8b90" />
+          <stop offset="0.14" stopColor="#d83f45" />
+          <stop offset="0.5" stopColor="#8c101e" />
+          <stop offset="1" stopColor="#4f060f" />
         </linearGradient>
-        <linearGradient id="mask-core-gradient" x1="170" y1="90" x2="170" y2="430" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#123345" />
-          <stop offset="1" stopColor="#071520" />
+        <linearGradient id="helmet-gold" x1="190" y1="70" x2="190" y2="492" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#fff0aa" />
+          <stop offset="0.18" stopColor="#f8ca57" />
+          <stop offset="0.56" stopColor="#b66a16" />
+          <stop offset="1" stopColor="#6b2f08" />
         </linearGradient>
-        <linearGradient id="mask-amber-gradient" x1="95" y1="160" x2="245" y2="340" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#ffd36b" />
-          <stop offset="1" stopColor="#ff9e2f" />
+        <linearGradient id="helmet-gold-edge" x1="130" y1="110" x2="255" y2="430" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#ffe39a" />
+          <stop offset="1" stopColor="#92500d" />
         </linearGradient>
-        <radialGradient id="eye-glow-gradient" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(170 190) rotate(90) scale(120 70)">
+        <linearGradient id="helmet-eyes" x1="116" y1="202" x2="264" y2="202" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#b6e6ff" />
           <stop offset="0" stopColor="#ffffff" />
-          <stop offset="0.42" stopColor="#cafcff" />
-          <stop offset="1" stopColor="#4ccfff" stopOpacity="0" />
+          <stop offset="0.54" stopColor="#effcff" />
+          <stop offset="1" stopColor="#9dd5ff" />
+        </linearGradient>
+        <radialGradient id="helmet-eye-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(190 208) rotate(90) scale(120 86)">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0.9" />
+          <stop offset="0.4" stopColor="#ccf0ff" stopOpacity="0.9" />
+          <stop offset="1" stopColor="#73bdff" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="helmet-shell-shine" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(175 92) rotate(90) scale(150 130)">
+          <stop offset="0" stopColor="#fff4cf" stopOpacity="0.86" />
+          <stop offset="1" stopColor="#fff4cf" stopOpacity="0" />
         </radialGradient>
       </defs>
 
-      <ellipse cx="170" cy="210" rx="110" ry="164" className="mask-aura" />
+      <ellipse cx="190" cy="234" rx="138" ry="190" className="helmet-aura" />
       <path
-        d="M170 18L260 54L294 164L274 320L224 432L170 490L116 432L66 320L46 164L80 54L170 18Z"
-        className="mask-outline"
+        d="M190 24C270 26 319 80 329 158C338 232 329 312 300 400C284 448 252 493 190 520C128 493 96 448 80 400C51 312 42 232 51 158C61 80 110 26 190 24Z"
+        className="helmet-shell"
+      />
+      <path d="M190 44C233 45 264 60 281 92L270 139H110L99 92C116 60 147 45 190 44Z" className="helmet-crown" />
+      <path d="M158 28H222C227 28 231 32 231 37V79C231 92 221 102 208 102H172C159 102 149 92 149 79V37C149 32 153 28 158 28Z" className="helmet-crest" />
+      <path
+        d="M108 122C137 88 236 80 272 122C282 180 277 234 260 287C251 314 236 338 214 355L226 424L190 486L154 424L166 355C144 338 129 314 120 287C103 234 98 180 108 122Z"
+        className="helmet-faceplate"
+      />
+      <path d="M140 146L190 124L240 146" className="helmet-brow-line" />
+      <path d="M121 284L150 352L190 396L230 352L259 284" className="helmet-jaw-line" />
+      <path d="M108 146L84 198L92 344L120 420L158 480L104 438L74 370L62 242L70 144L108 146Z" className="helmet-side-shell" />
+      <path d="M272 146L296 198L288 344L260 420L222 480L276 438L306 370L318 242L310 144L272 146Z" className="helmet-side-shell" />
+      <path d="M122 186L165 170L156 210L108 221L122 186Z" className="helmet-eye-frame" />
+      <path d="M258 186L215 170L224 210L272 221L258 186Z" className="helmet-eye-frame" />
+      <path
+        d="M128 190C139 180 150 176 164 174C160 189 156 202 150 211C138 212 126 209 118 204C120 198 123 194 128 190Z"
+        className="helmet-eye-glow"
+        style={{ transform: `scale(${eyeScale}, ${Math.max(0.94, 1 + audioLevel * 0.2)})`, transformOrigin: "141px 194px" }}
       />
       <path
-        d="M170 62L235 90L253 171L241 296L205 390L170 430L135 390L99 296L87 171L105 90L170 62Z"
-        className="mask-shell"
+        d="M252 190C241 180 230 176 216 174C220 189 224 202 230 211C242 212 254 209 262 204C260 198 257 194 252 190Z"
+        className="helmet-eye-glow"
+        style={{ transform: `scale(${eyeScale}, ${Math.max(0.94, 1 + audioLevel * 0.2)})`, transformOrigin: "239px 194px" }}
       />
-      <path d="M170 44L220 66L238 116L226 178L202 120L170 102L138 120L114 178L102 116L120 66L170 44Z" className="mask-shell-top" />
-      <path
-        d="M117 114L164 84L223 114L229 203L202 266L170 286L138 266L111 203L117 114Z"
-        className="mask-faceplate"
-      />
-      <path
-        d="M138 138L168 122L202 138L206 214L186 256L170 266L154 256L134 214L138 138Z"
-        className="mask-core"
-      />
-      <path d="M122 120L170 88L218 120" className="mask-panel-line" />
-      <path d="M111 206L133 285L170 334L207 285L229 206" className="mask-panel-line" />
-      <path d="M155 286L170 272L185 286" className="mask-panel-line" />
-      <path
-        d="M114 175L150 156L141 207L92 224L114 175Z"
-        className="mask-accent"
-      />
-      <path
-        d="M226 175L190 156L199 207L248 224L226 175Z"
-        className="mask-accent"
-      />
-      <path
-        d="M97 268L132 223L145 287L111 339L97 268Z"
-        className="mask-accent"
-      />
-      <path
-        d="M243 268L208 223L195 287L229 339L243 268Z"
-        className="mask-accent"
-      />
-      <path d="M89 154L111 133L104 222L82 236L89 154Z" className="mask-side-plate" />
-      <path d="M251 154L229 133L236 222L258 236L251 154Z" className="mask-side-plate" />
-      <path
-        d="M82 358L126 322L116 374L68 408L82 358Z"
-        className="mask-edge-line"
-      />
-      <path
-        d="M258 358L214 322L224 374L272 408L258 358Z"
-        className="mask-edge-line"
-      />
-      <path
-        d="M126 172L160 154L148 206L112 216L126 172Z"
-        className="mask-eye-frame"
-      />
-      <path
-        d="M214 172L180 154L192 206L228 216L214 172Z"
-        className="mask-eye-frame"
-      />
-      <path
-        d="M132 181L158 167L150 198L122 208L132 181Z"
-        className="mask-eye-light"
-        style={{ transform: `scale(${eyeScale}, ${Math.max(0.92, 1 + audioLevel * 0.34)})`, transformOrigin: "140px 188px" }}
-      />
-      <path
-        d="M208 181L182 167L190 198L218 208L208 181Z"
-        className="mask-eye-light"
-        style={{ transform: `scale(${eyeScale}, ${Math.max(0.92, 1 + audioLevel * 0.34)})`, transformOrigin: "200px 188px" }}
-      />
-      <path d="M124 212L156 202" className="mask-eye-trail" />
-      <path d="M216 212L184 202" className="mask-eye-trail" />
-      <path d="M162 284H178V370H152L162 284Z" className="mask-nose" />
-      <path d="M142 392H198L188 406H152L142 392Z" className="mask-mouth" />
-      <path d="M146 96H194L182 142H158L146 96Z" className="mask-crown" />
-      <path d="M105 88L145 71L132 123L112 135L105 88Z" className="mask-cheek-line" />
-      <path d="M235 88L195 71L208 123L228 135L235 88Z" className="mask-cheek-line" />
-      <path d="M170 430L144 390L170 452L196 390L170 430Z" className="mask-jaw-highlight" />
+      <path d="M170 242L190 232L210 242L216 333L190 394L164 333L170 242Z" className="helmet-nose-plate" />
+      <path d="M132 414L157 367L190 400L223 367L248 414L222 434L190 456L158 434L132 414Z" className="helmet-mouth-guard" />
+      <path d="M152 432H228" className="helmet-mouth-line" />
+      <path d="M165 446H215" className="helmet-mouth-line" />
+      <path d="M120 154L146 140L136 198L108 210L120 154Z" className="helmet-cheek-shine" />
+      <path d="M260 154L234 140L244 198L272 210L260 154Z" className="helmet-cheek-shine" />
+      <path d="M114 326L142 308L134 354L102 378L114 326Z" className="helmet-gold-edge" />
+      <path d="M266 326L238 308L246 354L278 378L266 326Z" className="helmet-gold-edge" />
+      <circle cx="104" cy="130" r="5.8" className="helmet-bolt" />
+      <circle cx="276" cy="130" r="5.8" className="helmet-bolt" />
+      <circle cx="88" cy="320" r="5.8" className="helmet-bolt" />
+      <circle cx="292" cy="320" r="5.8" className="helmet-bolt" />
+      <path d="M115 94C131 64 156 48 190 46" className="helmet-shell-highlight" />
+      <path d="M265 94C249 64 224 48 190 46" className="helmet-shell-highlight" />
+      <ellipse cx="182" cy="98" rx="84" ry="54" className="helmet-face-shine" />
     </svg>
   );
 }
