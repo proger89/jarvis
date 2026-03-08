@@ -622,10 +622,60 @@ button {
   padding-bottom: 12px;
 }
 
+.subtitle-panel {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 14px 18px;
+  border: 1px solid rgba(0, 219, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(4, 16, 25, 0.62);
+  backdrop-filter: blur(10px);
+}
+
+.subtitle-line {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+}
+
+.subtitle-line span {
+  color: rgba(153, 231, 246, 0.72);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.subtitle-line strong {
+  color: #f4fdff;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.subtitle-line-user strong {
+  color: #aef8ff;
+}
+
+.subtitle-line-assistant strong {
+  color: #fff7dd;
+}
+
+.subtitle-line-tool strong {
+  color: #ffd486;
+}
+
+.subtitle-line-error strong {
+  color: #ffb0a5;
+}
+
 .overlay-state-idle .hud-footer {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding-bottom: 0;
+}
+
+.overlay-state-idle .subtitle-panel {
+  display: none;
 }
 
 .hud-pill {
@@ -1120,6 +1170,14 @@ button {
   .hud-footer {
     grid-template-columns: 1fr 1fr;
     gap: 10px;
+  }
+
+  .subtitle-panel {
+    padding: 12px 14px;
+  }
+
+  .subtitle-line strong {
+    font-size: 0.92rem;
   }
 
   .hud-top-actions {

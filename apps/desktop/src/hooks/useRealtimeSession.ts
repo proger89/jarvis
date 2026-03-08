@@ -19,6 +19,9 @@ type UseRealtimeSessionResult = {
   remoteAudioLevel: number;
   lastError: string;
   lastEventType: string;
+  userSubtitle: string;
+  assistantSubtitle: string;
+  activeToolName: string;
   startSession: () => Promise<void>;
   stopSession: () => void;
 };
@@ -28,6 +31,9 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
   const [remoteAudioLevel, setRemoteAudioLevel] = useState(0);
   const [lastError, setLastError] = useState("");
   const [lastEventType, setLastEventType] = useState("");
+  const [userSubtitle, setUserSubtitle] = useState("");
+  const [assistantSubtitle, setAssistantSubtitle] = useState("");
+  const [activeToolName, setActiveToolName] = useState("");
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
@@ -75,6 +81,20 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
     cleanupRemoteAnalyser();
     setConnectionState("disconnected");
     setLastEventType("");
+    setLastError("");
+    setUserSubtitle("");
+    setAssistantSubtitle("");
+    setActiveToolName("");
+  }
+
+  function sendClientEvent(message: Record<string, unknown>) {
+    if (dataChannelRef.current?.readyState === "open") {
+      dataChannelRef.current.send(JSON.stringify(message));
+    }
+  }
+
+  function appendTranscript(current: string, chunk: string) {
+    return `${current}${chunk}`.trim();
   }
 
   async function attachRemoteAudio(stream: MediaStream) {
@@ -170,12 +190,67 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
       dataChannel.addEventListener("open", () => {
         setConnectionState("connected");
         setLastEventType("session.open");
+        sendClientEvent({
+          type: "session.update",
+          session: {
+            type: "realtime",
+            input_audio_transcription: {
+              model: "gpt-4o-mini-transcribe",
+            },
+            turn_detection: {
+              type: "server_vad",
+            },
+          },
+        });
       });
 
       dataChannel.addEventListener("message", (event) => {
         try {
-          const payload = JSON.parse(event.data as string) as { type?: string };
+          const payload = JSON.parse(event.data as string) as {
+            type?: string;
+            delta?: string;
+            transcript?: string;
+            error?: { message?: string };
+            item?: { type?: string; name?: string };
+            response?: { output?: Array<{ type?: string; name?: string }> };
+          };
           setLastEventType(payload.type ?? "server.event");
+
+          switch (payload.type) {
+            case "error":
+              setConnectionState("error");
+              setLastError(payload.error?.message ?? "Произошла ошибка во время разговора.");
+              break;
+            case "response.audio_transcript.delta":
+            case "response.text.delta":
+              if (payload.delta) {
+                setAssistantSubtitle((current) => appendTranscript(current, payload.delta ?? ""));
+              }
+              break;
+            case "response.audio_transcript.done":
+            case "response.text.done":
+              if (payload.transcript) {
+                setAssistantSubtitle(payload.transcript.trim());
+              }
+              break;
+            case "conversation.item.input_audio_transcription.completed":
+              if (payload.transcript) {
+                setUserSubtitle(payload.transcript.trim());
+              }
+              break;
+            case "response.output_item.added":
+              if (payload.item?.type === "function_call") {
+                setActiveToolName(payload.item.name ?? "действие");
+              }
+              break;
+            case "response.done":
+              if (!payload.response?.output?.some((item) => item.type === "function_call")) {
+                setActiveToolName("");
+              }
+              break;
+            default:
+              break;
+          }
         } catch {
           setLastEventType("server.event");
         }
@@ -232,6 +307,9 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
     remoteAudioLevel,
     lastError,
     lastEventType,
+    userSubtitle,
+    assistantSubtitle,
+    activeToolName,
     startSession,
     stopSession,
   };

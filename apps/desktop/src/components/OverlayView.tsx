@@ -19,11 +19,20 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
   const text = getCopy(settings.language);
   const overlayWindow = getCurrentWindow();
   const { level, permission, samples, start, stop } = useAudioWaveform(settings.inputDeviceId);
-  const { connectionState, remoteAudioLevel, lastError, lastEventType, startSession, stopSession } =
-    useRealtimeSession({
-      inputDeviceId: settings.inputDeviceId,
-      outputDeviceId: settings.outputDeviceId,
-    });
+  const {
+    connectionState,
+    remoteAudioLevel,
+    lastError,
+    lastEventType,
+    userSubtitle,
+    assistantSubtitle,
+    activeToolName,
+    startSession,
+    stopSession,
+  } = useRealtimeSession({
+    inputDeviceId: settings.inputDeviceId,
+    outputDeviceId: settings.outputDeviceId,
+  });
   const [overlayState, setOverlayState] = useState<OverlayState>("idle");
   const [showDebugControls, setShowDebugControls] = useState(false);
   const stateChangedAtRef = useRef(Date.now());
@@ -54,6 +63,7 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
   ];
 
   const stateConfig = text.overlay.statePanels[overlayState];
+  const subtitleVisible = Boolean(userSubtitle || assistantSubtitle || activeToolName || lastError);
 
   useEffect(() => {
     async function syncOverlayWindow() {
@@ -147,7 +157,7 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
     }
 
     if (connectionState === "error") {
-      transitionTo("idle");
+      transitionTo("error");
       return;
     }
 
@@ -160,6 +170,11 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
 
     if (lastEventType === "response.created") {
       transitionTo("thinking");
+    }
+
+    if (activeToolName) {
+      transitionTo("tool");
+      return;
     }
 
     if (remoteAudioLevel > 0.028) {
@@ -188,10 +203,10 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
       }
     }
 
-    if (connectionState === "connected" && overlayState === "idle") {
+    if (connectionState === "connected" && (overlayState === "idle" || overlayState === "tool" || overlayState === "error")) {
       transitionTo("listening");
     }
-  }, [connectionState, lastEventType, level, overlayState, permission, remoteAudioLevel]);
+  }, [activeToolName, connectionState, lastEventType, level, overlayState, permission, remoteAudioLevel]);
 
   function transitionTo(nextState: OverlayState) {
     stateChangedAtRef.current = Date.now();
@@ -299,6 +314,35 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
             </span>
           ))}
         </footer>
+
+        {subtitleVisible && (
+          <section className="subtitle-panel">
+            {userSubtitle && (
+              <p className="subtitle-line subtitle-line-user">
+                <span>{text.overlay.youLabel}</span>
+                <strong>{userSubtitle}</strong>
+              </p>
+            )}
+            {activeToolName && (
+              <p className="subtitle-line subtitle-line-tool">
+                <span>{text.overlay.actionLabel}</span>
+                <strong>{text.overlay.actionPrefix} {activeToolName}</strong>
+              </p>
+            )}
+            {assistantSubtitle && (
+              <p className="subtitle-line subtitle-line-assistant">
+                <span>{text.overlay.jarvisLabel}</span>
+                <strong>{assistantSubtitle}</strong>
+              </p>
+            )}
+            {lastError && (
+              <p className="subtitle-line subtitle-line-error">
+                <span>{text.overlay.errorLabel}</span>
+                <strong>{lastError}</strong>
+              </p>
+            )}
+          </section>
+        )}
 
         {showDebugControls && (
           <div className="hud-dev-strip">
