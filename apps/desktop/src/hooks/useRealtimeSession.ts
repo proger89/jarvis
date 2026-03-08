@@ -44,6 +44,16 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
   const analyserRef = useRef<AnalyserNode | null>(null);
   const analyserFrameRef = useRef<number | null>(null);
   const respondedItemIdsRef = useRef<Set<string>>(new Set());
+  const reconnectTimerRef = useRef<number | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const shouldStayConnectedRef = useRef(false);
+
+  function clearReconnectTimer() {
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }
 
   function cleanupRemoteAnalyser() {
     if (analyserFrameRef.current !== null) {
@@ -61,7 +71,21 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
     setRemoteAudioLevel(0);
   }
 
-  function stopSession() {
+  function resetSessionState() {
+    clearReconnectTimer();
+    reconnectAttemptRef.current = 0;
+    shouldStayConnectedRef.current = false;
+    cleanupRemoteAnalyser();
+    setConnectionState("disconnected");
+    setLastEventType("");
+    setLastError("");
+    setUserSubtitle("");
+    setAssistantSubtitle("");
+    setActiveToolName("");
+    respondedItemIdsRef.current.clear();
+  }
+
+  function teardownLiveObjects() {
     dataChannelRef.current?.close();
     dataChannelRef.current = null;
 
@@ -81,13 +105,12 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
     }
 
     cleanupRemoteAnalyser();
-    setConnectionState("disconnected");
-    setLastEventType("");
-    setLastError("");
-    setUserSubtitle("");
-    setAssistantSubtitle("");
-    setActiveToolName("");
-    respondedItemIdsRef.current.clear();
+  }
+
+  function stopSession() {
+    shouldStayConnectedRef.current = false;
+    teardownLiveObjects();
+    resetSessionState();
   }
 
   function sendClientEvent(message: Record<string, unknown>) {
@@ -122,6 +145,22 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
         modalities: ["audio", "text"],
       },
     });
+  }
+
+  function scheduleReconnect(reason: string) {
+    if (!shouldStayConnectedRef.current || reconnectTimerRef.current !== null) {
+      return;
+    }
+
+    reconnectAttemptRef.current += 1;
+    const delay = Math.min(1000 * 2 ** (reconnectAttemptRef.current - 1), 8000);
+    setConnectionState("connecting");
+    setLastError(`${reason} ${Math.round(delay / 1000)} сек.`);
+
+    reconnectTimerRef.current = window.setTimeout(() => {
+      reconnectTimerRef.current = null;
+      void startSession(true);
+    }, delay);
   }
 
   function appendTranscript(current: string, chunk: string) {
@@ -177,19 +216,26 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
     }
   }
 
-  async function startSession() {
-    if (connectionState === "connecting" || connectionState === "connected") {
+  async function startSession(isReconnect = false) {
+    if (!isReconnect && (connectionState === "connecting" || connectionState === "connected")) {
       return;
     }
+
+    shouldStayConnectedRef.current = true;
+    clearReconnectTimer();
 
     if (!("RTCPeerConnection" in window) || !("mediaDevices" in navigator)) {
       setConnectionState("error");
       setLastError("На этом устройстве нельзя начать живой разговор.");
+      shouldStayConnectedRef.current = false;
       return;
     }
 
     setConnectionState("connecting");
-    setLastError("");
+    if (!isReconnect) {
+      reconnectAttemptRef.current = 0;
+      setLastError("");
+    }
     setLastEventType("");
 
     try {
@@ -219,8 +265,10 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
       dataChannelRef.current = dataChannel;
 
       dataChannel.addEventListener("open", () => {
+        reconnectAttemptRef.current = 0;
         setConnectionState("connected");
         setLastEventType("session.open");
+        setLastError("");
         sendClientEvent({
           type: "session.update",
           session: {
@@ -296,12 +344,24 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
       });
 
       dataChannel.addEventListener("close", () => {
-        setConnectionState("disconnected");
+        if (shouldStayConnectedRef.current) {
+          teardownLiveObjects();
+          scheduleReconnect("Связь пропала. Повторяю подключение через");
+        } else {
+          resetSessionState();
+        }
       });
 
       dataChannel.addEventListener("error", () => {
-        setConnectionState("error");
-        setLastError("Соединение прервалось.");
+        teardownLiveObjects();
+        scheduleReconnect("Связь прервалась. Повторяю подключение через");
+      });
+
+      peerConnection.addEventListener("connectionstatechange", () => {
+        if (peerConnection.connectionState === "failed" || peerConnection.connectionState === "disconnected") {
+          teardownLiveObjects();
+          scheduleReconnect("Соединение потеряно. Повторяю подключение через");
+        }
       });
 
       const offer = await peerConnection.createOffer();
@@ -325,9 +385,17 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
 
       peerConnectionRef.current = peerConnection;
     } catch (error) {
-      stopSession();
-      setConnectionState("error");
-      setLastError(error instanceof Error ? error.message : "Не удалось начать разговор.");
+      teardownLiveObjects();
+      const message = error instanceof Error ? error.message : "Не удалось начать разговор.";
+
+      if (shouldStayConnectedRef.current) {
+        scheduleReconnect(`Не удалось начать разговор. Повторяю подключение через`);
+        setLastError(message);
+      } else {
+        resetSessionState();
+        setConnectionState("error");
+        setLastError(message);
+      }
     }
   }
 

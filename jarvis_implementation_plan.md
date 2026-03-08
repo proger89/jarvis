@@ -257,16 +257,22 @@ Definition of done:
 Цель: довести приложение до usable desktop product.
 
 Задачи:
-- `[not-done]` Реализовать tray icon
+- `[done]` Реализовать tray icon
 - `[not-done]` Реализовать auto-start
 - `[not-done]` Реализовать multi-monitor aware overlay positioning
 - `[not-done]` Переживать device hotplug без перезапуска
-- `[not-done]` Добавить reconnect with backoff
+- `[in-progress]` Добавить reconnect with backoff
 - `[not-done]` Добавить fallback states для invalid key, denied mic, dropped network, unstable wake word
 
 Definition of done:
 - Приложение стабильно переживает типовые Windows-сбои
 - Есть понятный пользовательский fallback вместо silent failure
+
+Текущее состояние phase:
+- `[done]` Tray icon уже есть на уровне foundation
+- `[done]` Базовое позиционирование overlay уже учитывает текущий монитор
+- `[in-progress]` Realtime client уже умеет повторять подключение с короткой паузой после обрыва
+- `[not-done]` Полное покрытие hotplug/fallback состояний еще не завершено
 
 ### Phase 11 — packaging and release readiness
 Цель: сделать сборку, которую можно запускать двойным кликом с рабочего стола.
