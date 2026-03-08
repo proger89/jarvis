@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
 import { getCopy } from "../lib/copy";
@@ -95,6 +96,16 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
       }
     };
   }, []);
+
+  useEffect(() => {
+    const unlistenPromise = listen("jarvis://hotkey-activate", () => {
+      void handlePrimaryAction();
+    });
+
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [apiKeyPresent, connectionState, isOnline, permission, settings]);
 
   useEffect(() => {
     function handleOnline() {

@@ -1,13 +1,14 @@
 use tauri::{
     menu::MenuBuilder,
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, WebviewUrl, WebviewWindowBuilder,
+    AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder,
 };
 use reqwest::blocking::multipart;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::{env, fs, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
 use serde_json::json;
+use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
 
 const SETTINGS_FILE_NAME: &str = "jarvis-settings.json";
 const MEMORY_FILE_NAME: &str = "jarvis-memory-facts.json";
@@ -17,6 +18,7 @@ const KEYRING_USERNAME: &str = "openai_api_key";
 const REALTIME_MODEL: &str = "gpt-realtime";
 const REALTIME_VOICE: &str = "marin";
 const REALTIME_INSTRUCTIONS: &str = include_str!("../../../../jarvis_persona_prompt.txt");
+const GLOBAL_ACTIVATION_SHORTCUT: &str = "Ctrl+Alt+J";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1065,6 +1067,19 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            app.handle().plugin(
+                tauri_plugin_global_shortcut::Builder::new()
+                    .with_shortcuts([GLOBAL_ACTIVATION_SHORTCUT])?
+                    .with_handler(|app, shortcut, event| {
+                        if event.state == ShortcutState::Pressed
+                            && shortcut.matches(Modifiers::CONTROL | Modifiers::ALT, Code::KeyJ)
+                        {
+                            focus_window(app, "overlay");
+                            let _ = app.emit_to("overlay", "jarvis://hotkey-activate", true);
+                        }
+                    })
+                    .build(),
+            )?;
             ensure_settings_window(&app.handle().clone())?;
             build_tray(&app.handle().clone())?;
             Ok(())

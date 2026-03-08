@@ -1291,6 +1291,26 @@ button {
   font-size: 0.9rem;
 }
 
+.readonly-chip {
+  display: grid;
+  gap: 4px;
+  min-height: 48px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(130, 210, 255, 0.18);
+  color: #eff7fb;
+  background: rgba(4, 18, 25, 0.84);
+}
+
+.readonly-chip strong {
+  font-size: 0.92rem;
+}
+
+.readonly-chip span {
+  color: rgba(214, 236, 244, 0.72);
+  font-size: 0.84rem;
+}
+
 .field input,
 .field select {
   padding: 12px 14px;

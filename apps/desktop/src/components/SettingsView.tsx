@@ -109,6 +109,11 @@ export function SettingsView({
       done: autostartEnabled,
     },
     {
+      title: text.settings.checklistHotkeyTitle,
+      detail: text.settings.checklistHotkeyDetail,
+      done: true,
+    },
+    {
       title: text.settings.checklistPackagingTitle,
       detail: text.settings.checklistPackagingDetail,
       done: true,
@@ -368,6 +373,14 @@ export function SettingsView({
                   />
                   <span>{text.settings.autoStartHint}</span>
                 </label>
+              </div>
+
+              <div className="field">
+                <label htmlFor="hotkey-fallback">{text.settings.hotkeyFallbackLabel}</label>
+                <div className="readonly-chip" id="hotkey-fallback">
+                  <strong>{text.settings.hotkeyFallbackValue}</strong>
+                  <span>{text.settings.hotkeyFallbackHint}</span>
+                </div>
               </div>
 
               <div className="field">

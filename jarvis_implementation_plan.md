@@ -221,7 +221,7 @@ Definition of done:
 Задачи:
 - `[not-done]` Интегрировать локальный wake word engine
 - `[not-done]` Поддержать настраиваемую wake phrase
-- `[not-done]` Добавить global hotkey fallback
+- `[done]` Добавить global hotkey fallback
 - `[not-done]` Добавить sensitivity/calibration UI
 - `[not-done]` Реализовать cooldown после ответа ассистента
 - `[not-done]` Отключать wake detection, пока ассистент говорит
@@ -229,6 +229,10 @@ Definition of done:
 Definition of done:
 - Wake phrase срабатывает стабильно
 - Есть fallback через hotkey/push-to-talk
+
+Текущее состояние phase:
+- `[done]` Есть системный fallback shortcut `Ctrl+Alt+J`, который поднимает overlay и запускает voice activation path
+- `[not-done]` Локальный wake word engine, cooldown и calibration UI еще не добавлены
 
 ### Phase 8 — tools and web search
 Цель: добавить полезные backend tools без потери скорости voice UX.
