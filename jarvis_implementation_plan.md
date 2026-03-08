@@ -233,7 +233,7 @@ Definition of done:
 - `[in-progress]` Реализовать `search_web` через Responses API
 - `[in-progress]` Отдавать spoken summary + source cards
 - `[in-progress]` Реализовать `open_url`
-- `[not-done]` Реализовать `remember_fact` / `recall_fact`
+- `[in-progress]` Реализовать `remember_fact` / `recall_fact`
 - `[not-done]` Подготовить `analyze_screen_once` с confirm flow
 
 Definition of done:
@@ -246,7 +246,8 @@ Definition of done:
 - `[in-progress]` `open_url` уже подключен через confirm flow перед открытием ссылки
 - `[in-progress]` Native `search_web` уже ходит в Responses API и возвращает summary + источники
 - `[in-progress]` Overlay уже показывает кликабельные source cards для результатов web search
-- `[not-done]` Полноценный Rust tool broker и memory tools еще не добавлены
+- `[in-progress]` Native memory tools уже умеют сохранять и искать простые факты в локальном store
+- `[not-done]` Полноценный Rust tool broker и screen/memory expansion еще не добавлены
 
 ### Phase 9 — local memory and persistence
 Цель: добавить локальную память и долговечные настройки.
@@ -255,12 +256,17 @@ Definition of done:
 - `[not-done]` Подключить SQLite
 - `[not-done]` Создать таблицы `profile`, `preferences`, `memory_facts`, `session_summaries`, `tool_audit_log`, `device_history`
 - `[not-done]` Реализовать rolling summaries
-- `[not-done]` Реализовать explicit facts store
+- `[in-progress]` Реализовать explicit facts store
 - `[not-done]` Добавить `forget me` control в settings
 
 Definition of done:
 - Профиль и настройки сохраняются локально
 - Память хранит только разрешенные данные
+
+Текущее состояние phase:
+- `[in-progress]` Есть локальный JSON-backed store для `remember_fact / recall_fact`
+- `[in-progress]` Realtime tools уже умеют сохранять и читать простые факты через native side
+- `[not-done]` SQLite, summaries и управление памятью в settings еще не добавлены
 
 ### Phase 10 — Windows integration and resilience
 Цель: довести приложение до usable desktop product.

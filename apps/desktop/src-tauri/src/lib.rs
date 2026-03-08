@@ -5,10 +5,11 @@ use tauri::{
 };
 use reqwest::blocking::multipart;
 use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
 use serde_json::json;
 
 const SETTINGS_FILE_NAME: &str = "jarvis-settings.json";
+const MEMORY_FILE_NAME: &str = "jarvis-memory-facts.json";
 const KEYRING_SERVICE: &str = "JarvisDesktop";
 const KEYRING_USERNAME: &str = "openai_api_key";
 const REALTIME_MODEL: &str = "gpt-realtime";
@@ -53,6 +54,31 @@ struct SearchSource {
 struct SearchWebResult {
     summary: String,
     sources: Vec<SearchSource>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MemoryFact {
+    key: String,
+    value: String,
+    scope: String,
+    updated_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RememberFactResult {
+    ok: bool,
+    message: String,
+    fact: MemoryFact,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RecallFactResult {
+    ok: bool,
+    message: String,
+    matches: Vec<MemoryFact>,
 }
 
 impl Default for UiSettings {
@@ -118,6 +144,37 @@ fn settings_file_path(app: &AppHandle) -> Result<PathBuf, String> {
     fs::create_dir_all(&config_dir).map_err(|error| error.to_string())?;
     config_dir.push(SETTINGS_FILE_NAME);
     Ok(config_dir)
+}
+
+fn memory_file_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let mut config_dir = app.path().app_config_dir().map_err(|error| error.to_string())?;
+    fs::create_dir_all(&config_dir).map_err(|error| error.to_string())?;
+    config_dir.push(MEMORY_FILE_NAME);
+    Ok(config_dir)
+}
+
+fn load_memory_facts(app: &AppHandle) -> Result<Vec<MemoryFact>, String> {
+    let path = memory_file_path(app)?;
+
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let content = fs::read_to_string(path).map_err(|error| error.to_string())?;
+    serde_json::from_str::<Vec<MemoryFact>>(&content).map_err(|error| error.to_string())
+}
+
+fn save_memory_facts(app: &AppHandle, facts: &[MemoryFact]) -> Result<(), String> {
+    let path = memory_file_path(app)?;
+    let content = serde_json::to_string_pretty(facts).map_err(|error| error.to_string())?;
+    fs::write(path, content).map_err(|error| error.to_string())
+}
+
+fn current_timestamp() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0)
 }
 
 fn load_settings_from_disk(app: &AppHandle) -> Result<UiSettings, String> {
@@ -484,6 +541,75 @@ fn search_web(query: String, intent: Option<String>) -> Result<SearchWebResult, 
     Ok(SearchWebResult { summary, sources })
 }
 
+#[tauri::command]
+fn remember_fact(app: AppHandle, key: String, value: String, scope: Option<String>) -> Result<RememberFactResult, String> {
+    let normalized_key = key.trim().to_lowercase();
+    let normalized_value = value.trim().to_string();
+    let normalized_scope = scope
+        .unwrap_or_else(|| "preference".to_string())
+        .trim()
+        .to_lowercase();
+
+    if normalized_key.is_empty() || normalized_value.is_empty() {
+        return Err("Для памяти нужны и ключ, и значение.".to_string());
+    }
+
+    let mut facts = load_memory_facts(&app)?;
+    let fact = MemoryFact {
+        key: normalized_key.clone(),
+        value: normalized_value,
+        scope: normalized_scope,
+        updated_at: current_timestamp(),
+    };
+
+    if let Some(existing) = facts.iter_mut().find(|item| item.key == normalized_key) {
+        *existing = fact.clone();
+    } else {
+        facts.push(fact.clone());
+    }
+
+    save_memory_facts(&app, &facts)?;
+
+    Ok(RememberFactResult {
+        ok: true,
+        message: format!("Запомнил {}.", fact.key),
+        fact,
+    })
+}
+
+#[tauri::command]
+fn recall_fact(app: AppHandle, query: String) -> Result<RecallFactResult, String> {
+    let normalized_query = query.trim().to_lowercase();
+    if normalized_query.is_empty() {
+        return Err("Для поиска по памяти нужен запрос.".to_string());
+    }
+
+    let mut facts = load_memory_facts(&app)?;
+    facts.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
+
+    let matches: Vec<MemoryFact> = facts
+        .into_iter()
+        .filter(|fact| {
+            fact.key.contains(&normalized_query)
+                || fact.value.to_lowercase().contains(&normalized_query)
+                || fact.scope.contains(&normalized_query)
+        })
+        .take(5)
+        .collect();
+
+    let message = if matches.is_empty() {
+        "Подходящие факты не найдены.".to_string()
+    } else {
+        format!("Нашел {} фактов.", matches.len())
+    };
+
+    Ok(RecallFactResult {
+        ok: true,
+        message,
+        matches,
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -501,7 +627,9 @@ pub fn run() {
             save_api_key,
             verify_api_key,
             create_realtime_session,
-            search_web
+            search_web,
+            remember_fact,
+            recall_fact
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

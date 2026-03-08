@@ -77,6 +77,41 @@ const realtimeTools = [
       required: ["query"],
     },
   },
+  {
+    type: "function",
+    name: "remember_fact",
+    description: "Store a durable user preference or explicit personal fact locally.",
+    parameters: {
+      type: "object",
+      properties: {
+        key: {
+          type: "string",
+        },
+        value: {
+          type: "string",
+        },
+        scope: {
+          type: "string",
+          enum: ["profile", "preference", "project", "temporary"],
+        },
+      },
+      required: ["key", "value"],
+    },
+  },
+  {
+    type: "function",
+    name: "recall_fact",
+    description: "Recall previously stored local memory facts relevant to the current request.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+        },
+      },
+      required: ["query"],
+    },
+  },
 ] as const;
 
 type RealtimeConnectionState = "disconnected" | "connecting" | "connected" | "error";
@@ -95,6 +130,12 @@ type SearchSource = {
 type SearchWebResult = {
   summary: string;
   sources: SearchSource[];
+};
+
+type ToolResultLike = {
+  message?: string;
+  summary?: string;
+  matches?: Array<{ key?: string; value?: string; scope?: string }>;
 };
 
 type PendingOpenRequest = {
@@ -362,6 +403,16 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
           query: String(args.query ?? ""),
           intent: typeof args.intent === "string" ? args.intent : undefined,
         });
+      case "remember_fact":
+        return await invoke("remember_fact", {
+          key: String(args.key ?? ""),
+          value: String(args.value ?? ""),
+          scope: typeof args.scope === "string" ? args.scope : undefined,
+        });
+      case "recall_fact":
+        return await invoke("recall_fact", {
+          query: String(args.query ?? ""),
+        });
       case "switch_microphone":
         return await switchDeviceTool("input", String(args.device_id ?? ""));
       case "switch_output_device":
@@ -385,7 +436,16 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
         setToolSummary(searchResult.summary ?? "");
         setToolSources(searchResult.sources ?? []);
       } else {
-        setToolSummary("");
+        const toolResult = result as ToolResultLike;
+        if (name === "recall_fact" && Array.isArray(toolResult.matches) && toolResult.matches.length > 0) {
+          setToolSummary(
+            toolResult.matches
+              .map((match) => `${match.key ?? "факт"}: ${match.value ?? ""}`.trim())
+              .join(" | "),
+          );
+        } else {
+          setToolSummary(toolResult.summary ?? toolResult.message ?? "");
+        }
         setToolSources([]);
       }
 
