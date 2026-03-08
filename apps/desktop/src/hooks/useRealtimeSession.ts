@@ -97,6 +97,11 @@ type SearchWebResult = {
   sources: SearchSource[];
 };
 
+type PendingOpenRequest = {
+  title: string;
+  url: string;
+};
+
 type UseRealtimeSessionOptions = {
   inputDeviceId: string;
   outputDeviceId: string;
@@ -113,8 +118,12 @@ type UseRealtimeSessionResult = {
   activeToolName: string;
   toolSummary: string;
   toolSources: SearchSource[];
+  pendingOpenRequest: PendingOpenRequest | null;
   startSession: () => Promise<void>;
   interruptResponse: () => void;
+  requestOpenApproval: (request: PendingOpenRequest) => Promise<boolean>;
+  confirmPendingOpen: () => Promise<void>;
+  rejectPendingOpen: () => void;
   stopSession: () => void;
 };
 
@@ -128,6 +137,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
   const [activeToolName, setActiveToolName] = useState("");
   const [toolSummary, setToolSummary] = useState("");
   const [toolSources, setToolSources] = useState<SearchSource[]>([]);
+  const [pendingOpenRequest, setPendingOpenRequest] = useState<PendingOpenRequest | null>(null);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
@@ -140,6 +150,13 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptRef = useRef(0);
   const shouldStayConnectedRef = useRef(false);
+  const pendingOpenResolverRef = useRef<((approved: boolean) => void) | null>(null);
+
+  function settlePendingOpen(approved: boolean) {
+    pendingOpenResolverRef.current?.(approved);
+    pendingOpenResolverRef.current = null;
+    setPendingOpenRequest(null);
+  }
 
   function clearReconnectTimer() {
     if (reconnectTimerRef.current !== null) {
@@ -177,6 +194,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     setActiveToolName("");
     setToolSummary("");
     setToolSources([]);
+    settlePendingOpen(false);
     respondedItemIdsRef.current.clear();
   }
 
@@ -225,6 +243,28 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     setToolSummary("");
     setToolSources([]);
     setLastEventType("response.cancelled");
+  }
+
+  function requestOpenApproval(request: PendingOpenRequest) {
+    return new Promise<boolean>((resolve) => {
+      settlePendingOpen(false);
+      pendingOpenResolverRef.current = resolve;
+      setPendingOpenRequest(request);
+    });
+  }
+
+  async function confirmPendingOpen() {
+    if (!pendingOpenRequest) {
+      return;
+    }
+
+    const request = pendingOpenRequest;
+    await openUrl(request.url);
+    settlePendingOpen(true);
+  }
+
+  function rejectPendingOpen() {
+    settlePendingOpen(false);
   }
 
   function requestAssistantResponse(itemId?: string) {
@@ -291,7 +331,18 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
       };
     }
 
-    await openUrl(url);
+    const approved = await requestOpenApproval({
+      title: title?.trim() || "Открыть ссылку",
+      url,
+    });
+
+    if (!approved) {
+      return {
+        ok: false,
+        message: "Открытие ссылки отменено.",
+        url,
+      };
+    }
 
     return {
       ok: true,
@@ -642,8 +693,12 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     activeToolName,
     toolSummary,
     toolSources,
+    pendingOpenRequest,
     startSession,
     interruptResponse,
+    requestOpenApproval,
+    confirmPendingOpen,
+    rejectPendingOpen,
     stopSession,
   };
 }

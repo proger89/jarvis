@@ -30,8 +30,12 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
     activeToolName,
     toolSummary,
     toolSources,
+    pendingOpenRequest,
     startSession,
     interruptResponse,
+    requestOpenApproval,
+    confirmPendingOpen,
+    rejectPendingOpen,
     stopSession,
   } = useRealtimeSession({
     inputDeviceId: settings.inputDeviceId,
@@ -71,6 +75,7 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
   const stateConfig = text.overlay.statePanels[overlayState];
   const subtitleVisible = Boolean(userSubtitle || assistantSubtitle || activeToolName || lastError);
   const sourceCardsVisible = toolSources.length > 0;
+  const openConfirmVisible = Boolean(pendingOpenRequest);
   const reconnecting = connectionState === "connecting" && lastError.includes(text.overlay.reconnectClue);
   const fallbackCard = !apiKeyPresent
     ? {
@@ -320,6 +325,10 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
     }
   }
 
+  async function handleSourceCardOpen(title: string, url: string) {
+    await requestOpenApproval({ title, url });
+  }
+
   function handleReset() {
     heardVoiceRef.current = false;
     lastVoiceAtRef.current = 0;
@@ -446,11 +455,34 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
             {toolSummary && <p className="source-cards-summary">{toolSummary}</p>}
             <div className="source-cards-grid">
               {toolSources.map((source) => (
-                <article key={source.url} className="source-card">
+                <button
+                  key={source.url}
+                  className="source-card"
+                  onClick={() => void handleSourceCardOpen(source.title, source.url)}
+                  type="button"
+                >
                   <p className="source-card-title">{source.title}</p>
                   <p className="source-card-url">{source.url}</p>
-                </article>
+                </button>
               ))}
+            </div>
+          </section>
+        )}
+
+        {openConfirmVisible && pendingOpenRequest && (
+          <section className="open-confirm-panel">
+            <div>
+              <p className="open-confirm-title">{text.overlay.openConfirmTitle}</p>
+              <p className="open-confirm-copy">{pendingOpenRequest.title}</p>
+              <p className="open-confirm-url">{pendingOpenRequest.url}</p>
+            </div>
+            <div className="open-confirm-actions">
+              <button className="hud-settings-button" onClick={rejectPendingOpen} type="button">
+                {text.overlay.openConfirmCancel}
+              </button>
+              <button className="hud-primary-action" onClick={() => void confirmPendingOpen()} type="button">
+                {text.overlay.openConfirmApprove}
+              </button>
             </div>
           </section>
         )}

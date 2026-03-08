@@ -243,9 +243,9 @@ Definition of done:
 Текущее состояние phase:
 - `[in-progress]` Realtime session уже умеет принимать tool calls и возвращать `function_call_output`
 - `[done]` Подключены первые реальные tools: `list_audio_devices`, `switch_microphone`, `switch_output_device`
-- `[in-progress]` `open_url` уже подключен на клиентской стороне через системное открытие ссылки
+- `[in-progress]` `open_url` уже подключен через confirm flow перед открытием ссылки
 - `[in-progress]` Native `search_web` уже ходит в Responses API и возвращает summary + источники
-- `[in-progress]` Overlay уже показывает source cards для результатов web search
+- `[in-progress]` Overlay уже показывает кликабельные source cards для результатов web search
 - `[not-done]` Полноценный Rust tool broker и memory tools еще не добавлены
 
 ### Phase 9 — local memory and persistence
