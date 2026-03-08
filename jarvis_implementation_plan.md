@@ -264,6 +264,8 @@ Definition of done:
 - Память хранит только разрешенные данные
 
 Текущее состояние phase:
+- `[done]` `profile/preferences` уже сохраняются в SQLite-backed store
+- `[done]` Есть миграция legacy settings JSON в SQLite
 - `[done]` `remember_fact / recall_fact` уже работают через SQLite-backed store
 - `[done]` Есть миграция legacy JSON-файла памяти в SQLite
 - `[in-progress]` Realtime tools уже умеют сохранять и читать простые факты через native side
@@ -271,7 +273,7 @@ Definition of done:
 - `[in-progress]` Короткие session summaries уже сохраняются в SQLite и видны в settings
 - `[done]` `tool_audit_log` уже собирает результаты tool-вызовов и виден в settings
 - `[done]` `device_history` уже фиксирует смену аудиоустройств и виден в settings
-- `[not-done]` `profile`, `preferences` и более полный audit layer еще не добавлены
+- `[not-done]` Более полный audit layer и расширение persistence еще не добавлены
 
 ### Phase 10 — Windows integration and resilience
 Цель: довести приложение до usable desktop product.

@@ -184,6 +184,37 @@ fn settings_file_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(config_dir)
 }
 
+fn migrate_legacy_settings_file(app: &AppHandle, connection: &Connection) -> Result<(), String> {
+    let legacy_path = settings_file_path(app)?;
+
+    if !legacy_path.exists() {
+        return Ok(());
+    }
+
+    let content = fs::read_to_string(&legacy_path).map_err(|error| error.to_string())?;
+    let parsed = serde_json::from_str::<UiSettings>(&content).unwrap_or_default();
+    let sanitized = sanitize_settings(parsed);
+
+    connection
+        .execute(
+            "INSERT INTO profile (id, language, wake_word, address_title) VALUES (1, ?1, ?2, ?3)
+             ON CONFLICT(id) DO UPDATE SET language = excluded.language, wake_word = excluded.wake_word, address_title = excluded.address_title",
+            params![sanitized.language, sanitized.wake_word, sanitized.address_title],
+        )
+        .map_err(|error| error.to_string())?;
+
+    connection
+        .execute(
+            "INSERT INTO preferences (id, overlay_mode, input_device_id, output_device_id) VALUES (1, ?1, ?2, ?3)
+             ON CONFLICT(id) DO UPDATE SET overlay_mode = excluded.overlay_mode, input_device_id = excluded.input_device_id, output_device_id = excluded.output_device_id",
+            params![sanitized.overlay_mode, sanitized.input_device_id, sanitized.output_device_id],
+        )
+        .map_err(|error| error.to_string())?;
+
+    fs::remove_file(legacy_path).map_err(|error| error.to_string())?;
+    Ok(())
+}
+
 fn memory_file_path(app: &AppHandle) -> Result<PathBuf, String> {
     let mut config_dir = app.path().app_config_dir().map_err(|error| error.to_string())?;
     fs::create_dir_all(&config_dir).map_err(|error| error.to_string())?;
@@ -225,6 +256,30 @@ fn migrate_legacy_memory_file(app: &AppHandle, connection: &Connection) -> Resul
 fn open_memory_db(app: &AppHandle) -> Result<Connection, String> {
     let path = memory_db_path(app)?;
     let connection = Connection::open(path).map_err(|error| error.to_string())?;
+
+    connection
+        .execute(
+            "CREATE TABLE IF NOT EXISTS profile (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                language TEXT NOT NULL,
+                wake_word TEXT NOT NULL,
+                address_title TEXT NOT NULL
+            )",
+            [],
+        )
+        .map_err(|error| error.to_string())?;
+
+    connection
+        .execute(
+            "CREATE TABLE IF NOT EXISTS preferences (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                overlay_mode TEXT NOT NULL,
+                input_device_id TEXT NOT NULL,
+                output_device_id TEXT NOT NULL
+            )",
+            [],
+        )
+        .map_err(|error| error.to_string())?;
 
     connection
         .execute(
@@ -276,6 +331,7 @@ fn open_memory_db(app: &AppHandle) -> Result<Connection, String> {
         )
         .map_err(|error| error.to_string())?;
 
+    migrate_legacy_settings_file(app, &connection)?;
     migrate_legacy_memory_file(app, &connection)?;
 
     Ok(connection)
@@ -462,21 +518,63 @@ fn current_timestamp() -> u64 {
 }
 
 fn load_settings_from_disk(app: &AppHandle) -> Result<UiSettings, String> {
-    let path = settings_file_path(app)?;
+    let connection = open_memory_db(app)?;
+    let profile_row = connection.query_row(
+        "SELECT language, wake_word, address_title FROM profile WHERE id = 1",
+        [],
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        },
+    );
 
-    if !path.exists() {
-        return Ok(UiSettings::default());
+    let preferences_row = connection.query_row(
+        "SELECT overlay_mode, input_device_id, output_device_id FROM preferences WHERE id = 1",
+        [],
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        },
+    );
+
+    match (profile_row, preferences_row) {
+        (Ok((language, wake_word, address_title)), Ok((overlay_mode, input_device_id, output_device_id))) => Ok(sanitize_settings(UiSettings {
+            language,
+            wake_word,
+            address_title,
+            overlay_mode,
+            input_device_id,
+            output_device_id,
+        })),
+        _ => Ok(UiSettings::default()),
     }
-
-    let content = fs::read_to_string(path).map_err(|error| error.to_string())?;
-    let parsed = serde_json::from_str::<UiSettings>(&content).unwrap_or_default();
-    Ok(sanitize_settings(parsed))
 }
 
 fn save_settings_to_disk(app: &AppHandle, settings: &UiSettings) -> Result<(), String> {
-    let path = settings_file_path(app)?;
-    let content = serde_json::to_string_pretty(settings).map_err(|error| error.to_string())?;
-    fs::write(path, content).map_err(|error| error.to_string())
+    let connection = open_memory_db(app)?;
+    connection
+        .execute(
+            "INSERT INTO profile (id, language, wake_word, address_title) VALUES (1, ?1, ?2, ?3)
+             ON CONFLICT(id) DO UPDATE SET language = excluded.language, wake_word = excluded.wake_word, address_title = excluded.address_title",
+            params![settings.language, settings.wake_word, settings.address_title],
+        )
+        .map_err(|error| error.to_string())?;
+
+    connection
+        .execute(
+            "INSERT INTO preferences (id, overlay_mode, input_device_id, output_device_id) VALUES (1, ?1, ?2, ?3)
+             ON CONFLICT(id) DO UPDATE SET overlay_mode = excluded.overlay_mode, input_device_id = excluded.input_device_id, output_device_id = excluded.output_device_id",
+            params![settings.overlay_mode, settings.input_device_id, settings.output_device_id],
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
 }
 
 fn api_key_entry() -> Result<keyring::Entry, String> {
