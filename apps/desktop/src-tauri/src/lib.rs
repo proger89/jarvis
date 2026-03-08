@@ -100,6 +100,25 @@ struct SessionSummary {
     created_at: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ToolAuditRecord {
+    id: i64,
+    tool_name: String,
+    status: String,
+    detail: String,
+    created_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeviceHistoryRecord {
+    id: i64,
+    device_kind: String,
+    device_id: String,
+    created_at: u64,
+}
+
 impl Default for UiSettings {
     fn default() -> Self {
         Self {
@@ -232,6 +251,31 @@ fn open_memory_db(app: &AppHandle) -> Result<Connection, String> {
         )
         .map_err(|error| error.to_string())?;
 
+    connection
+        .execute(
+            "CREATE TABLE IF NOT EXISTS tool_audit_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tool_name TEXT NOT NULL,
+                status TEXT NOT NULL,
+                detail TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )",
+            [],
+        )
+        .map_err(|error| error.to_string())?;
+
+    connection
+        .execute(
+            "CREATE TABLE IF NOT EXISTS device_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                device_kind TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )",
+            [],
+        )
+        .map_err(|error| error.to_string())?;
+
     migrate_legacy_memory_file(app, &connection)?;
 
     Ok(connection)
@@ -282,7 +326,84 @@ fn clear_memory_store(app: &AppHandle) -> Result<(), String> {
     connection
         .execute("DELETE FROM session_summaries", [])
         .map_err(|error| error.to_string())?;
+    connection
+        .execute("DELETE FROM tool_audit_log", [])
+        .map_err(|error| error.to_string())?;
+    connection
+        .execute("DELETE FROM device_history", [])
+        .map_err(|error| error.to_string())?;
     Ok(())
+}
+
+fn save_tool_audit_record(app: &AppHandle, tool_name: &str, status: &str, detail: &str) -> Result<(), String> {
+    let connection = open_memory_db(app)?;
+    connection
+        .execute(
+            "INSERT INTO tool_audit_log (tool_name, status, detail, created_at) VALUES (?1, ?2, ?3, ?4)",
+            params![tool_name, status, detail, current_timestamp() as i64],
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn save_device_history_record(app: &AppHandle, device_kind: &str, device_id: &str) -> Result<(), String> {
+    let connection = open_memory_db(app)?;
+    connection
+        .execute(
+            "INSERT INTO device_history (device_kind, device_id, created_at) VALUES (?1, ?2, ?3)",
+            params![device_kind, device_id, current_timestamp() as i64],
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn load_tool_audit_records(app: &AppHandle) -> Result<Vec<ToolAuditRecord>, String> {
+    let connection = open_memory_db(app)?;
+    let mut statement = connection
+        .prepare(
+            "SELECT id, tool_name, status, detail, created_at FROM tool_audit_log ORDER BY created_at DESC LIMIT 20",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(ToolAuditRecord {
+                id: row.get(0)?,
+                tool_name: row.get(1)?,
+                status: row.get(2)?,
+                detail: row.get(3)?,
+                created_at: row.get::<_, i64>(4)? as u64,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+    let mut records = Vec::new();
+    for row in rows {
+        records.push(row.map_err(|error| error.to_string())?);
+    }
+    Ok(records)
+}
+
+fn load_device_history_records(app: &AppHandle) -> Result<Vec<DeviceHistoryRecord>, String> {
+    let connection = open_memory_db(app)?;
+    let mut statement = connection
+        .prepare(
+            "SELECT id, device_kind, device_id, created_at FROM device_history ORDER BY created_at DESC LIMIT 20",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(DeviceHistoryRecord {
+                id: row.get(0)?,
+                device_kind: row.get(1)?,
+                device_id: row.get(2)?,
+                created_at: row.get::<_, i64>(3)? as u64,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+    let mut records = Vec::new();
+    for row in rows {
+        records.push(row.map_err(|error| error.to_string())?);
+    }
+    Ok(records)
 }
 
 fn save_session_summary_record(
@@ -447,8 +568,18 @@ fn load_settings(app: AppHandle) -> Result<UiSettings, String> {
 
 #[tauri::command]
 fn save_settings(app: AppHandle, settings: UiSettings) -> Result<UiSettings, String> {
+    let previous = load_settings_from_disk(&app).unwrap_or_default();
     let sanitized = sanitize_settings(settings);
     save_settings_to_disk(&app, &sanitized)?;
+
+    if previous.input_device_id != sanitized.input_device_id {
+        save_device_history_record(&app, "input", &sanitized.input_device_id)?;
+    }
+
+    if previous.output_device_id != sanitized.output_device_id {
+        save_device_history_record(&app, "output", &sanitized.output_device_id)?;
+    }
+
     Ok(sanitized)
 }
 
@@ -805,6 +936,21 @@ fn list_session_summaries(app: AppHandle) -> Result<Vec<SessionSummary>, String>
     load_session_summaries(&app)
 }
 
+#[tauri::command]
+fn log_tool_audit(app: AppHandle, tool_name: String, status: String, detail: String) -> Result<(), String> {
+    save_tool_audit_record(&app, tool_name.trim(), status.trim(), detail.trim())
+}
+
+#[tauri::command]
+fn list_tool_audit_logs(app: AppHandle) -> Result<Vec<ToolAuditRecord>, String> {
+    load_tool_audit_records(&app)
+}
+
+#[tauri::command]
+fn list_device_history(app: AppHandle) -> Result<Vec<DeviceHistoryRecord>, String> {
+    load_device_history_records(&app)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -828,7 +974,10 @@ pub fn run() {
             list_memory_facts,
             clear_memory_facts,
             save_session_summary,
-            list_session_summaries
+            list_session_summaries,
+            log_tool_audit,
+            list_tool_audit_logs,
+            list_device_history
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

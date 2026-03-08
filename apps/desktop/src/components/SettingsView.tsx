@@ -34,6 +34,21 @@ type SessionSummary = {
   createdAt: number;
 };
 
+type ToolAuditRecord = {
+  id: number;
+  toolName: string;
+  status: string;
+  detail: string;
+  createdAt: number;
+};
+
+type DeviceHistoryRecord = {
+  id: number;
+  deviceKind: string;
+  deviceId: string;
+  createdAt: number;
+};
+
 type SettingsViewProps = {
   settings: AppSettings;
   apiKeyPresent: boolean;
@@ -60,6 +75,8 @@ export function SettingsView({
   const [outputDevices, setOutputDevices] = useState<DeviceOption[]>([]);
   const [memoryFacts, setMemoryFacts] = useState<MemoryFact[]>([]);
   const [sessionSummaries, setSessionSummaries] = useState<SessionSummary[]>([]);
+  const [toolAuditLogs, setToolAuditLogs] = useState<ToolAuditRecord[]>([]);
+  const [deviceHistory, setDeviceHistory] = useState<DeviceHistoryRecord[]>([]);
   const [memoryMessage, setMemoryMessage] = useState("");
   const text = getCopy(language);
   const phaseOneChecklist = [
@@ -135,12 +152,16 @@ export function SettingsView({
   useEffect(() => {
     async function loadMemoryState() {
       try {
-        const [facts, summaries] = await Promise.all([
+        const [facts, summaries, auditLogs, devices] = await Promise.all([
           invoke<MemoryFact[]>("list_memory_facts"),
           invoke<SessionSummary[]>("list_session_summaries"),
+          invoke<ToolAuditRecord[]>("list_tool_audit_logs"),
+          invoke<DeviceHistoryRecord[]>("list_device_history"),
         ]);
         setMemoryFacts(facts);
         setSessionSummaries(summaries);
+        setToolAuditLogs(auditLogs);
+        setDeviceHistory(devices);
       } catch {
         setMemoryMessage(text.settings.memoryLoadFailed);
       }
@@ -207,6 +228,8 @@ export function SettingsView({
       const result = await invoke<ClearMemoryResult>("clear_memory_facts");
       setMemoryFacts([]);
       setSessionSummaries([]);
+      setToolAuditLogs([]);
+      setDeviceHistory([]);
       setMemoryMessage(result.message);
     } catch {
       setMemoryMessage(text.settings.memoryClearFailed);
@@ -416,6 +439,55 @@ export function SettingsView({
               </ul>
             ) : (
               <p className="inline-note">{text.settings.summaryEmpty}</p>
+            )}
+          </section>
+
+          <section className="settings-section">
+            <div className="section-header">
+              <div>
+                <h2 className="overlay-title">{text.settings.auditTitle}</h2>
+                <p className="section-copy">{text.settings.auditSummary}</p>
+              </div>
+            </div>
+
+            {toolAuditLogs.length > 0 ? (
+              <ul className="summary-list">
+                {toolAuditLogs.map((record) => (
+                  <li key={record.id}>
+                    <div>
+                      <strong>{record.toolName}</strong>
+                      <span>{record.status}</span>
+                      <span>{record.detail}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="inline-note">{text.settings.auditEmpty}</p>
+            )}
+          </section>
+
+          <section className="settings-section">
+            <div className="section-header">
+              <div>
+                <h2 className="overlay-title">{text.settings.deviceHistoryTitle}</h2>
+                <p className="section-copy">{text.settings.deviceHistorySummary}</p>
+              </div>
+            </div>
+
+            {deviceHistory.length > 0 ? (
+              <ul className="summary-list">
+                {deviceHistory.map((record) => (
+                  <li key={record.id}>
+                    <div>
+                      <strong>{record.deviceKind}</strong>
+                      <span>{record.deviceId}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="inline-note">{text.settings.deviceHistoryEmpty}</p>
             )}
           </section>
         </div>

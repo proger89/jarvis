@@ -468,6 +468,15 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
         setToolSources([]);
       }
 
+      const toolResult = result as ToolResultLike;
+      void invoke("log_tool_audit", {
+        toolName: name,
+        status: "completed",
+        detail: toolResult.summary ?? toolResult.message ?? JSON.stringify(result),
+      }).catch(() => {
+        // Ignore audit log failures silently.
+      });
+
       sendClientEvent({
         type: "conversation.item.create",
         item: {
@@ -481,6 +490,13 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
       const message = error instanceof Error ? error.message : "Не удалось выполнить действие.";
       setToolSummary(message);
       setToolSources([]);
+      void invoke("log_tool_audit", {
+        toolName: name,
+        status: "failed",
+        detail: message,
+      }).catch(() => {
+        // Ignore audit log failures silently.
+      });
       sendClientEvent({
         type: "conversation.item.create",
         item: {

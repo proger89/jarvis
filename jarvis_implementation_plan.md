@@ -269,7 +269,9 @@ Definition of done:
 - `[in-progress]` Realtime tools уже умеют сохранять и читать простые факты через native side
 - `[in-progress]` В settings уже можно увидеть локальные факты и очистить память через `forget me`
 - `[in-progress]` Короткие session summaries уже сохраняются в SQLite и видны в settings
-- `[not-done]` Остальные таблицы памяти и полноценный audit layer еще не добавлены
+- `[done]` `tool_audit_log` уже собирает результаты tool-вызовов и виден в settings
+- `[done]` `device_history` уже фиксирует смену аудиоустройств и виден в settings
+- `[not-done]` `profile`, `preferences` и более полный audit layer еще не добавлены
 
 ### Phase 10 — Windows integration and resilience
 Цель: довести приложение до usable desktop product.
