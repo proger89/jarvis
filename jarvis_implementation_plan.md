@@ -198,7 +198,7 @@ Definition of done:
 - `[in-progress]` Overlay уже показывает простые субтитры, ошибки и состояние выполнения действия
 - `[in-progress]` Отмена ответа при новом голосе уже заложена в клиентском коде
 - `[in-progress]` Начало речи прерывает ответ, а окончание реплики автоматически запускает новый ответ
-- `[in-progress]` Тестовый ключ подтвержден: OpenAI API и Realtime client secret endpoint отвечают успешно
+- `[done]` Optional OpenAI smoke verify уже подтверждает рабочий `Models API` и `Responses API` path через `OPENAI_API_KEY`
 - `[not-done]` Полный end-to-end голосовой диалог еще не подтвержден с реальным API key и рабочей сессией
 
 ### Phase 6 — Jarvis identity and UX polish
@@ -252,6 +252,7 @@ Definition of done:
 - `[in-progress]` Native `search_web` уже ходит в Responses API и возвращает summary + источники
 - `[in-progress]` Overlay уже умеет показывать source cards и confirm flow, но в текущем минимальном centered UX эти панели не являются основным визуальным режимом
 - `[in-progress]` Native memory tools уже умеют сохранять и искать простые факты в локальном store
+- `[done]` Optional OpenAI smoke verify уже подтверждает `Responses API` path для web-search tooling
 - `[not-done]` Полноценный Rust tool broker и screen/memory expansion еще не добавлены
 
 ### Phase 9 — local memory and persistence

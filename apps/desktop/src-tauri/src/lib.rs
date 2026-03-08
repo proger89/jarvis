@@ -6,7 +6,7 @@ use tauri::{
 use reqwest::blocking::multipart;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
+use std::{env, fs, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
 use serde_json::json;
 
 const SETTINGS_FILE_NAME: &str = "jarvis-settings.json";
@@ -581,6 +581,26 @@ fn api_key_entry() -> Result<keyring::Entry, String> {
     keyring::Entry::new(KEYRING_SERVICE, KEYRING_USERNAME).map_err(|error| error.to_string())
 }
 
+fn load_api_key() -> Result<String, String> {
+    let entry = api_key_entry()?;
+
+    if let Ok(value) = entry.get_password() {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+    }
+
+    if let Ok(value) = env::var("OPENAI_API_KEY") {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+    }
+
+    Err("Ключ не найден. Сохраните его в настройках или передайте через OPENAI_API_KEY.".to_string())
+}
+
 fn focus_window(app: &AppHandle, label: &str) {
     if let Some(window) = app.get_webview_window(label) {
         let _ = window.unminimize();
@@ -683,11 +703,7 @@ fn save_settings(app: AppHandle, settings: UiSettings) -> Result<UiSettings, Str
 
 #[tauri::command]
 fn api_key_status() -> Result<bool, String> {
-    let entry = api_key_entry()?;
-    Ok(entry
-        .get_password()
-        .map(|value| !value.trim().is_empty())
-        .unwrap_or(false))
+    Ok(load_api_key().map(|value| !value.trim().is_empty()).unwrap_or(false))
 }
 
 #[tauri::command]
@@ -704,12 +720,10 @@ fn save_api_key(api_key: String) -> Result<(), String> {
 
 #[tauri::command]
 fn create_realtime_session(offer_sdp: String) -> Result<RealtimeSessionInitResult, String> {
-    let key = api_key_entry()?
-        .get_password()
-        .map_err(|_| "Ключ не найден. Сначала сохраните его в настройках.".to_string())?;
+    let key = load_api_key()?;
 
     if key.trim().is_empty() {
-        return Err("Ключ пустой. Сначала сохраните его в настройках.".to_string());
+        return Err("Ключ пустой. Сохраните его в настройках или передайте через OPENAI_API_KEY.".to_string());
     }
 
     if offer_sdp.trim().is_empty() {
@@ -781,9 +795,7 @@ fn create_realtime_session(offer_sdp: String) -> Result<RealtimeSessionInitResul
 
 #[tauri::command]
 fn verify_api_key() -> Result<ApiKeyCheckResult, String> {
-    let key = api_key_entry()?
-        .get_password()
-        .map_err(|_| "Ключ не найден. Сначала сохраните его в настройках.".to_string())?;
+    let key = load_api_key()?;
 
     if key.trim().is_empty() {
         return Ok(ApiKeyCheckResult {
@@ -821,12 +833,10 @@ fn verify_api_key() -> Result<ApiKeyCheckResult, String> {
 
 #[tauri::command]
 fn search_web(query: String, intent: Option<String>) -> Result<SearchWebResult, String> {
-    let key = api_key_entry()?
-        .get_password()
-        .map_err(|_| "Ключ не найден. Сначала сохраните его в настройках.".to_string())?;
+    let key = load_api_key()?;
 
     if key.trim().is_empty() {
-        return Err("Ключ пустой. Сначала сохраните его в настройках.".to_string());
+        return Err("Ключ пустой. Сохраните его в настройках или передайте через OPENAI_API_KEY.".to_string());
     }
 
     let trimmed_query = query.trim();
