@@ -21,7 +21,10 @@ html,
 body,
 #root {
   margin: 0;
+  width: 100%;
+  height: 100%;
   min-height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -40,7 +43,9 @@ button {
 }
 
 .app-shell {
+  width: 100%;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 .loading-screen {
@@ -66,6 +71,7 @@ button {
 .speaking-overlay-shell {
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
   min-height: 100vh;
   padding: 42px 48px 34px;
   background:
@@ -192,7 +198,10 @@ button {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 100vh;
+  box-sizing: border-box;
+  height: 100vh;
+  padding: 42px 48px 34px;
+  overflow: hidden;
 }
 
 .speaking-header {
@@ -263,6 +272,7 @@ button {
   align-items: center;
   gap: 28px;
   flex: 1;
+  min-height: 0;
 }
 
 .wave-band {
@@ -313,7 +323,7 @@ button {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 520px;
+  min-height: clamp(280px, 48vh, 520px);
 }
 
 .mask-stage-idle .mask-target-ring,
@@ -372,7 +382,7 @@ button {
 }
 
 .jarvis-mask {
-  width: min(33vw, 320px);
+  width: min(28vw, 300px);
   height: auto;
   filter:
     drop-shadow(0 0 24px rgba(0, 217, 255, 0.35))
@@ -534,7 +544,8 @@ button {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 22px;
-  padding-bottom: 24px;
+  flex-shrink: 0;
+  padding-bottom: 12px;
 }
 
 .hud-pill {
@@ -559,7 +570,8 @@ button {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: center;
-  padding-bottom: 18px;
+  flex-shrink: 0;
+  padding-bottom: 8px;
 }
 
 .hud-dev-button {
@@ -998,12 +1010,16 @@ button {
   }
 
   .speaking-overlay-shell {
-    padding: 22px 20px 26px;
+    padding: 18px 16px 20px;
+  }
+
+  .speaking-overlay-panel {
+    padding: 18px 16px 20px;
   }
 
   .speaking-center-stage {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 4px;
   }
 
   .wave-band {
@@ -1012,11 +1028,12 @@ button {
 
   .mask-stage {
     order: 1;
-    min-height: 360px;
+    min-height: clamp(220px, 38vh, 320px);
   }
 
   .hud-footer {
     grid-template-columns: 1fr 1fr;
+    gap: 10px;
   }
 
   .hud-top-actions {
@@ -1032,16 +1049,18 @@ button {
   }
 
   .jarvis-mask {
-    width: min(62vw, 280px);
+    width: min(48vw, 220px);
   }
 
   .wave-ribbon {
     width: 100%;
+    height: 90px;
   }
 
   .mask-caption-panel {
     min-width: 0;
-    width: min(88vw, 280px);
+    width: min(84vw, 250px);
+    bottom: -4px;
   }
 
   .frame-corner {

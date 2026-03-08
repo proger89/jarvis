@@ -14,8 +14,11 @@
       {
         "label": "overlay",
         "title": "JARVIS Overlay",
-        "width": 520,
-        "height": 360,
+        "width": 1600,
+        "height": 900,
+        "minWidth": 1280,
+        "minHeight": 720,
+        "maximized": true,
         "resizable": false,
         "fullscreen": false,
         "decorations": false,
