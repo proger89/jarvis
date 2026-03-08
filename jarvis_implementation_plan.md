@@ -146,7 +146,7 @@ Definition of done:
 - `[done]` Реальные runtime-состояния `idle / wake / listening / thinking / speaking` уже подключены в overlay
 - `[done]` Idle behavior переведен в компактный click-through режим
 - `[done]` Есть dev-only debug console, вызываемая только в dev-сборке
-- `[in-progress]` `tool / error` состояния уже разведены, но еще не доведены до финального UX
+- `[in-progress]` `tool / error` состояния уже имеют отдельную компактную rail-UX и цветовую реакцию, но еще могут быть доработаны
 
 ### Phase 4 — audio pipeline
 Цель: подготовить input/output audio infrastructure.
@@ -353,7 +353,7 @@ Definition of done:
 ## 5. Что делать следующим шагом
 
 Следующий исполнимый шаг по порядку:
-- `[next]` Закрыть остатки overlay state machine для `tool / error` UX
+- `[next]` Подтвердить end-to-end Realtime voice session с реальной рабочей сессией
 - `[next]` Затем добить output audio / fallback path и подтвердить end-to-end Realtime voice session
 
 ## 6. Критерии приемки MVP

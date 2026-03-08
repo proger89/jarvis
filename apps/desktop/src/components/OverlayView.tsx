@@ -68,6 +68,25 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
   }, [overlayState, remoteSamples, samples]);
 
   const openConfirmVisible = Boolean(pendingOpenRequest);
+  const statusRail = useMemo(() => {
+    if (overlayState === "tool") {
+      return {
+        tone: "tool",
+        title: text.overlay.stateBadge.tool,
+        message: toolSummary || activeToolName || text.overlay.actionPrefix,
+      };
+    }
+
+    if (overlayState === "error") {
+      return {
+        tone: "error",
+        title: text.overlay.stateBadge.error,
+        message: lastError || text.overlay.fallbackRetry,
+      };
+    }
+
+    return null;
+  }, [activeToolName, lastError, overlayState, text.overlay.actionPrefix, text.overlay.fallbackRetry, text.overlay.stateBadge.error, text.overlay.stateBadge.tool, toolSummary]);
 
   useEffect(() => {
     return () => {
@@ -304,6 +323,13 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
             <WaveRibbon className="wave-ribbon" mirrored samples={speakingSamples} />
           </div>
         </div>
+
+        {statusRail && (
+          <section className={`overlay-status-rail overlay-status-rail-${statusRail.tone}`}>
+            <span>{statusRail.title}</span>
+            <strong>{statusRail.message}</strong>
+          </section>
+        )}
 
         {openConfirmVisible && pendingOpenRequest && (
           <section className="open-confirm-panel">
