@@ -302,14 +302,19 @@ Definition of done:
 Цель: сделать сборку, которую можно запускать двойным кликом с рабочего стола.
 
 Задачи:
-- `[not-done]` Настроить production build для Windows
-- `[not-done]` Проверить packaged app launch вне dev-среды
+- `[done]` Настроить production build для Windows
+- `[in-progress]` Проверить packaged app launch вне dev-среды
 - `[not-done]` Подготовить иконки, shortcut и installer flow
 - `[not-done]` Проверить первый-run UX: ключ, устройства, тест голоса, wake word
 
 Definition of done:
 - Пользователь может открыть приложение двойным кликом
 - Первый запуск укладывается в целевой onboarding
+
+Текущее состояние phase:
+- `[done]` `npm --prefix apps/desktop run tauri build` реально собирает Windows bundles: MSI и NSIS
+- `[in-progress]` Release executable реально стартует вне dev-сервера; installer-based first-run path все еще не подтвержден
+- `[not-done]` Shortcut, installer UX и onboarding smoke еще не подтверждены
 
 ## 4. Что уже сделано по факту
 
