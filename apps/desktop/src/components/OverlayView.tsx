@@ -18,6 +18,7 @@ type OverlayViewProps = {
 };
 
 export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: OverlayViewProps) {
+  const ACTIVATION_COOLDOWN_MS = 1200;
   const text = getCopy(settings.language);
   const isDevBuild = import.meta.env.DEV;
   const overlayWindow = getCurrentWindow();
@@ -52,6 +53,7 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
   const lastRemoteVoiceAtRef = useRef(0);
   const lastAppliedWindowStateRef = useRef<OverlayState | null>(null);
   const wakeTimerRef = useRef<number | null>(null);
+  const activationCooldownUntilRef = useRef(0);
 
   const speakingSamples = useMemo(() => {
     if (overlayState === "speaking") {
@@ -194,11 +196,13 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
     }
 
     if (connectionState === "error") {
+      activationCooldownUntilRef.current = 0;
       transitionTo("error");
       return;
     }
 
     if (connectionState === "disconnected") {
+      activationCooldownUntilRef.current = 0;
       if (overlayState !== "idle" && overlayState !== "wake") {
         transitionTo("idle");
       }
@@ -233,6 +237,7 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
     }
 
     if (overlayState === "speaking" && now - lastRemoteVoiceAtRef.current > 900) {
+      activationCooldownUntilRef.current = now + ACTIVATION_COOLDOWN_MS;
       transitionTo("listening");
       return;
     }
@@ -272,10 +277,23 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
       return;
     }
 
+    if (connectionState === "disconnected" && Date.now() < activationCooldownUntilRef.current) {
+      return;
+    }
+
     if (connectionState === "connected" || connectionState === "connecting") {
+      if (overlayState === "speaking" || overlayState === "thinking" || overlayState === "tool") {
+        interruptResponse();
+        heardVoiceRef.current = false;
+        lastVoiceAtRef.current = 0;
+        transitionTo("listening");
+        return;
+      }
+
       stopSession();
       heardVoiceRef.current = false;
       lastVoiceAtRef.current = 0;
+      activationCooldownUntilRef.current = 0;
       transitionTo("idle");
       return;
     }
@@ -284,6 +302,7 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
       await start();
     }
 
+    activationCooldownUntilRef.current = 0;
     heardVoiceRef.current = false;
     lastVoiceAtRef.current = 0;
     transitionTo("wake");
@@ -301,6 +320,7 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
   function handleReset() {
     heardVoiceRef.current = false;
     lastVoiceAtRef.current = 0;
+    activationCooldownUntilRef.current = 0;
     if (wakeTimerRef.current !== null) {
       window.clearTimeout(wakeTimerRef.current);
       wakeTimerRef.current = null;
@@ -390,6 +410,10 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
               <div>
                 <span>Input level</span>
                 <strong>{level.toFixed(3)}</strong>
+              </div>
+              <div>
+                <span>Cooldown</span>
+                <strong>{Math.max(0, activationCooldownUntilRef.current - Date.now())}</strong>
               </div>
             </div>
 

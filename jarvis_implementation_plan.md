@@ -197,7 +197,7 @@ Definition of done:
 - `[in-progress]` Overlay уже реагирует не только на уровень ответа, но и на реальные remote audio samples во время speaking
 - `[in-progress]` Overlay уже показывает простые субтитры, ошибки и состояние выполнения действия
 - `[in-progress]` Отмена ответа при новом голосе уже заложена в клиентском коде
-- `[in-progress]` Начало речи прерывает ответ, а окончание реплики автоматически запускает новый ответ
+- `[in-progress]` Начало речи и follow-up activation уже прерывают ответ, а окончание реплики автоматически запускает новый ответ
 - `[done]` Optional OpenAI smoke verify уже подтверждает рабочий `Models API` и `Responses API` path через `OPENAI_API_KEY`
 - `[not-done]` Полный end-to-end голосовой диалог еще не подтвержден с реальным API key и рабочей сессией
 
@@ -236,6 +236,7 @@ Definition of done:
 
 Текущее состояние phase:
 - `[done]` Есть системный fallback shortcut `Ctrl+Alt+J`, который поднимает overlay и запускает voice activation path
+- `[in-progress]` После ответа ассистента уже есть короткий activation cooldown для более стабильного follow-up поведения
 - `[not-done]` Локальный wake word engine, cooldown и calibration UI еще не добавлены
 
 ### Phase 8 — tools and web search
