@@ -59,6 +59,24 @@ const realtimeTools = [
       required: ["url"],
     },
   },
+  {
+    type: "function",
+    name: "search_web",
+    description: "Search the web and return a short summary with source links.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+        },
+        intent: {
+          type: "string",
+          enum: ["general", "fact_check", "shopping", "news", "research"],
+        },
+      },
+      required: ["query"],
+    },
+  },
 ] as const;
 
 type RealtimeConnectionState = "disconnected" | "connecting" | "connected" | "error";
@@ -67,6 +85,16 @@ type RealtimeSessionInitResult = {
   model: string;
   voice: string;
   answerSdp: string;
+};
+
+type SearchSource = {
+  title: string;
+  url: string;
+};
+
+type SearchWebResult = {
+  summary: string;
+  sources: SearchSource[];
 };
 
 type UseRealtimeSessionOptions = {
@@ -83,6 +111,8 @@ type UseRealtimeSessionResult = {
   userSubtitle: string;
   assistantSubtitle: string;
   activeToolName: string;
+  toolSummary: string;
+  toolSources: SearchSource[];
   startSession: () => Promise<void>;
   interruptResponse: () => void;
   stopSession: () => void;
@@ -96,6 +126,8 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
   const [userSubtitle, setUserSubtitle] = useState("");
   const [assistantSubtitle, setAssistantSubtitle] = useState("");
   const [activeToolName, setActiveToolName] = useState("");
+  const [toolSummary, setToolSummary] = useState("");
+  const [toolSources, setToolSources] = useState<SearchSource[]>([]);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
@@ -143,6 +175,8 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     setUserSubtitle("");
     setAssistantSubtitle("");
     setActiveToolName("");
+    setToolSummary("");
+    setToolSources([]);
     respondedItemIdsRef.current.clear();
   }
 
@@ -188,6 +222,8 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     sendClientEvent({ type: "response.cancel" });
     setAssistantSubtitle("");
     setActiveToolName("");
+    setToolSummary("");
+    setToolSources([]);
     setLastEventType("response.cancelled");
   }
 
@@ -270,6 +306,11 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     switch (name) {
       case "list_audio_devices":
         return await listAudioDevicesTool();
+      case "search_web":
+        return await invoke<SearchWebResult>("search_web", {
+          query: String(args.query ?? ""),
+          intent: typeof args.intent === "string" ? args.intent : undefined,
+        });
       case "switch_microphone":
         return await switchDeviceTool("input", String(args.device_id ?? ""));
       case "switch_output_device":
@@ -288,6 +329,15 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     try {
       const result = await executeToolCall(name, rawArguments);
 
+      if (name === "search_web") {
+        const searchResult = result as SearchWebResult;
+        setToolSummary(searchResult.summary ?? "");
+        setToolSources(searchResult.sources ?? []);
+      } else {
+        setToolSummary("");
+        setToolSources([]);
+      }
+
       sendClientEvent({
         type: "conversation.item.create",
         item: {
@@ -299,6 +349,8 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Не удалось выполнить действие.";
+      setToolSummary(message);
+      setToolSources([]);
       sendClientEvent({
         type: "conversation.item.create",
         item: {
@@ -588,6 +640,8 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     userSubtitle,
     assistantSubtitle,
     activeToolName,
+    toolSummary,
+    toolSources,
     startSession,
     interruptResponse,
     stopSession,

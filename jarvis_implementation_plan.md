@@ -230,8 +230,8 @@ Definition of done:
 
 Задачи:
 - `[not-done]` Реализовать Rust tool broker с allowlist
-- `[not-done]` Реализовать `search_web` через Responses API
-- `[not-done]` Отдавать spoken summary + source cards
+- `[in-progress]` Реализовать `search_web` через Responses API
+- `[in-progress]` Отдавать spoken summary + source cards
 - `[in-progress]` Реализовать `open_url`
 - `[not-done]` Реализовать `remember_fact` / `recall_fact`
 - `[not-done]` Подготовить `analyze_screen_once` с confirm flow
@@ -244,7 +244,9 @@ Definition of done:
 - `[in-progress]` Realtime session уже умеет принимать tool calls и возвращать `function_call_output`
 - `[done]` Подключены первые реальные tools: `list_audio_devices`, `switch_microphone`, `switch_output_device`
 - `[in-progress]` `open_url` уже подключен на клиентской стороне через системное открытие ссылки
-- `[not-done]` Полноценный Rust tool broker и web search еще не добавлены
+- `[in-progress]` Native `search_web` уже ходит в Responses API и возвращает summary + источники
+- `[in-progress]` Overlay уже показывает source cards для результатов web search
+- `[not-done]` Полноценный Rust tool broker и memory tools еще не добавлены
 
 ### Phase 9 — local memory and persistence
 Цель: добавить локальную память и долговечные настройки.

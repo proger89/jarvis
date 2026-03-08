@@ -41,6 +41,20 @@ struct RealtimeSessionInitResult {
     answer_sdp: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SearchSource {
+    title: String,
+    url: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SearchWebResult {
+    summary: String,
+    sources: Vec<SearchSource>,
+}
+
 impl Default for UiSettings {
     fn default() -> Self {
         Self {
@@ -356,6 +370,120 @@ fn verify_api_key() -> Result<ApiKeyCheckResult, String> {
     Ok(ApiKeyCheckResult { ok: false, message })
 }
 
+#[tauri::command]
+fn search_web(query: String, intent: Option<String>) -> Result<SearchWebResult, String> {
+    let key = api_key_entry()?
+        .get_password()
+        .map_err(|_| "Ключ не найден. Сначала сохраните его в настройках.".to_string())?;
+
+    if key.trim().is_empty() {
+        return Err("Ключ пустой. Сначала сохраните его в настройках.".to_string());
+    }
+
+    let trimmed_query = query.trim();
+    if trimmed_query.is_empty() {
+        return Err("Нужно передать запрос для поиска.".to_string());
+    }
+
+    let search_context_size = match intent.as_deref() {
+        Some("research") | Some("news") => "high",
+        _ => "medium",
+    };
+
+    let prompt = format!(
+        "Search the web for this request and answer in concise Russian. Request: {}",
+        trimmed_query
+    );
+
+    let client = reqwest::blocking::Client::builder()
+        .build()
+        .map_err(|error| error.to_string())?;
+
+    let body = json!({
+        "model": "gpt-4.1-mini",
+        "input": prompt,
+        "tools": [
+            {
+                "type": "web_search_preview",
+                "search_context_size": search_context_size
+            }
+        ]
+    });
+
+    let response = client
+        .post("https://api.openai.com/v1/responses")
+        .bearer_auth(key.trim())
+        .json(&body)
+        .send()
+        .map_err(|error| error.to_string())?;
+
+    let status = response.status();
+    let payload: serde_json::Value = response.json().map_err(|error| error.to_string())?;
+
+    if !status.is_success() {
+        let message = payload
+            .get("error")
+            .and_then(|error| error.get("message"))
+            .and_then(|message| message.as_str())
+            .unwrap_or("Не удалось выполнить поиск в интернете.")
+            .to_string();
+        return Err(message);
+    }
+
+    let mut summary = payload
+        .get("output_text")
+        .and_then(|value| value.as_str())
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    let mut sources: Vec<SearchSource> = Vec::new();
+
+    if let Some(output_items) = payload.get("output").and_then(|value| value.as_array()) {
+        for item in output_items {
+            if let Some(content_items) = item.get("content").and_then(|value| value.as_array()) {
+                for content in content_items {
+                    if summary.is_empty() {
+                        if let Some(text) = content.get("text").and_then(|value| value.as_str()) {
+                            summary = text.trim().to_string();
+                        }
+                    }
+
+                    if let Some(annotations) = content.get("annotations").and_then(|value| value.as_array()) {
+                        for annotation in annotations {
+                            if annotation.get("type").and_then(|value| value.as_str()) != Some("url_citation") {
+                                continue;
+                            }
+
+                            let title = annotation
+                                .get("title")
+                                .and_then(|value| value.as_str())
+                                .unwrap_or("Источник")
+                                .to_string();
+                            let url = annotation
+                                .get("url")
+                                .and_then(|value| value.as_str())
+                                .unwrap_or_default()
+                                .to_string();
+
+                            if !url.is_empty() && !sources.iter().any(|source| source.url == url) {
+                                sources.push(SearchSource { title, url });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if summary.is_empty() {
+        summary = "Поиск завершен, но короткий итог не получен.".to_string();
+    }
+
+    sources.truncate(5);
+
+    Ok(SearchWebResult { summary, sources })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -372,7 +500,8 @@ pub fn run() {
             api_key_status,
             save_api_key,
             verify_api_key,
-            create_realtime_session
+            create_realtime_session,
+            search_web
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

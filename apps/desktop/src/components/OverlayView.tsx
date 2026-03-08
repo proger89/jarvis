@@ -28,6 +28,8 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
     userSubtitle,
     assistantSubtitle,
     activeToolName,
+    toolSummary,
+    toolSources,
     startSession,
     interruptResponse,
     stopSession,
@@ -68,6 +70,7 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
 
   const stateConfig = text.overlay.statePanels[overlayState];
   const subtitleVisible = Boolean(userSubtitle || assistantSubtitle || activeToolName || lastError);
+  const sourceCardsVisible = toolSources.length > 0;
   const reconnecting = connectionState === "connecting" && lastError.includes(text.overlay.reconnectClue);
   const fallbackCard = !apiKeyPresent
     ? {
@@ -435,6 +438,20 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
                 <strong>{lastError}</strong>
               </p>
             )}
+          </section>
+        )}
+
+        {sourceCardsVisible && (
+          <section className="source-cards">
+            {toolSummary && <p className="source-cards-summary">{toolSummary}</p>}
+            <div className="source-cards-grid">
+              {toolSources.map((source) => (
+                <article key={source.url} className="source-card">
+                  <p className="source-card-title">{source.title}</p>
+                  <p className="source-card-url">{source.url}</p>
+                </article>
+              ))}
+            </div>
           </section>
         )}
 
