@@ -1,7 +1,11 @@
+import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCopy } from "../lib/copy";
 import type { AppSettings } from "../types/settings";
 import { JarvisMask } from "./JarvisMask";
+import { WaveRibbon } from "./WaveRibbon";
+import { useAudioWaveform } from "../hooks/useAudioWaveform";
+import type { OverlayState } from "../types/overlay";
 
 type OverlayViewProps = {
   settings: AppSettings;
@@ -10,13 +14,96 @@ type OverlayViewProps = {
 
 export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
   const text = getCopy(settings.language);
-  const waveformBars = [0.42, 0.58, 0.32, 0.72, 0.86, 0.4, 0.61, 0.3, 0.66, 0.5, 0.28, 0.46];
+  const { level, permission, samples, start, stop } = useAudioWaveform();
+  const [overlayState, setOverlayState] = useState<OverlayState>("idle");
+  const stateChangedAtRef = useRef(Date.now());
+  const heardVoiceRef = useRef(false);
+  const lastVoiceAtRef = useRef(0);
+
+  const speakingSamples = useMemo(() => {
+    const speakerBase = overlayState === "speaking" ? 0.22 : overlayState === "thinking" ? 0.1 : 0;
+    return samples.map((sample, index) => {
+      const motion = overlayState === "speaking" ? Math.abs(Math.sin(Date.now() / 250 + index * 0.55)) * 0.18 : 0;
+      return Math.min(1, sample + speakerBase + motion);
+    });
+  }, [overlayState, samples]);
+
   const systemBadges = [
-    text.overlay.badgeVoiceLock,
-    text.overlay.badgeLowLatency,
+    text.overlay.stateBadge[overlayState],
+    permission === "granted" ? text.overlay.badgeLowLatency : text.overlay.badgeMicRequired,
     settings.wakeWord,
     apiKeyPresent ? text.overlay.badgeSearchReady : text.overlay.badgeSecureKeyPending,
   ];
+
+  const stateConfig = text.overlay.statePanels[overlayState];
+
+  useEffect(() => {
+    function handleKeys(event: KeyboardEvent) {
+      if (event.code === "Space") {
+        event.preventDefault();
+        void handlePrimaryAction();
+      }
+
+      if (event.code === "Escape") {
+        event.preventDefault();
+        handleReset();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeys);
+    return () => window.removeEventListener("keydown", handleKeys);
+  });
+
+  useEffect(() => {
+    if (permission !== "granted") {
+      return;
+    }
+
+    const now = Date.now();
+    const speechThreshold = 0.1;
+    const silenceThreshold = 0.045;
+
+    if (overlayState === "listening") {
+      if (level > speechThreshold) {
+        heardVoiceRef.current = true;
+        lastVoiceAtRef.current = now;
+      }
+
+      if (heardVoiceRef.current && level < silenceThreshold && now - lastVoiceAtRef.current > 900) {
+        transitionTo("thinking");
+      }
+    }
+
+    if (overlayState === "thinking" && now - stateChangedAtRef.current > 1300) {
+      transitionTo("speaking");
+    }
+
+    if (overlayState === "speaking" && now - stateChangedAtRef.current > 2600) {
+      heardVoiceRef.current = false;
+      transitionTo("idle");
+    }
+  }, [level, overlayState, permission]);
+
+  function transitionTo(nextState: OverlayState) {
+    stateChangedAtRef.current = Date.now();
+    setOverlayState(nextState);
+  }
+
+  async function handlePrimaryAction() {
+    if (permission !== "granted") {
+      await start();
+    }
+
+    heardVoiceRef.current = false;
+    lastVoiceAtRef.current = 0;
+    transitionTo(overlayState === "idle" ? "listening" : "idle");
+  }
+
+  function handleReset() {
+    heardVoiceRef.current = false;
+    lastVoiceAtRef.current = 0;
+    transitionTo("idle");
+  }
 
   async function openSettings() {
     await invoke("show_settings_window");
@@ -45,52 +132,38 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
             <p className="speaking-subtitle">
               {settings.addressTitle}, {text.overlay.hudSubtitle}
             </p>
+            <p className="hud-status-line">{stateConfig.description}</p>
           </div>
-          <button className="hud-settings-button" onClick={openSettings} type="button">
-            {text.overlay.openSettings}
-          </button>
+          <div className="hud-top-actions">
+            <button className="hud-primary-action" onClick={() => void handlePrimaryAction()} type="button">
+              {overlayState === "idle" ? text.overlay.activateVoice : text.overlay.pauseVoice}
+            </button>
+            <button className="hud-settings-button" onClick={openSettings} type="button">
+              {text.overlay.openSettings}
+            </button>
+          </div>
         </header>
 
         <div className="speaking-center-stage">
           <div className="wave-band wave-band-left" aria-hidden="true">
-            <div className="wave-line wave-line-cyan">
-              {waveformBars.map((height, index) => (
-                <span key={`left-cyan-${index}`} style={{ height: `${height * 100}%` }} />
-              ))}
-            </div>
-            <div className="wave-line wave-line-amber">
-              {waveformBars.map((height, index) => (
-                <span
-                  key={`left-amber-${index}`}
-                  style={{ height: `${Math.max(20, (1 - height) * 78)}%` }}
-                />
-              ))}
-            </div>
+            <WaveRibbon className="wave-ribbon" samples={speakingSamples} />
           </div>
 
-          <div className="mask-stage">
+          <div className={`mask-stage mask-stage-${overlayState}`}>
             <div className="mask-glow mask-glow-cyan" />
             <div className="mask-glow mask-glow-amber" />
-            <JarvisMask />
+            <div className="mask-target-ring mask-target-ring-outer" />
+            <div className="mask-target-ring mask-target-ring-inner" />
+            <JarvisMask audioLevel={level} state={overlayState} />
+            <div className="mask-caption-panel">
+              <span className="mask-caption-label">{stateConfig.label}</span>
+              <strong className="mask-caption-value">{stateConfig.headline}</strong>
+              <span className="mask-caption-meta">{stateConfig.meta}</span>
+            </div>
           </div>
 
           <div className="wave-band wave-band-right" aria-hidden="true">
-            <div className="wave-line wave-line-cyan">
-              {waveformBars.map((_, index) => (
-                <span
-                  key={`right-cyan-${index}`}
-                  style={{ height: `${waveformBars[(index + 3) % waveformBars.length] * 100}%` }}
-                />
-              ))}
-            </div>
-            <div className="wave-line wave-line-amber">
-              {waveformBars.map((_, index) => (
-                <span
-                  key={`right-amber-${index}`}
-                  style={{ height: `${Math.max(18, (1 - waveformBars[(index + 5) % waveformBars.length]) * 74)}%` }}
-                />
-              ))}
-            </div>
+            <WaveRibbon className="wave-ribbon" mirrored samples={speakingSamples} />
           </div>
         </div>
 
@@ -101,6 +174,30 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
             </span>
           ))}
         </footer>
+
+        <div className="hud-dev-strip">
+          <button className="hud-dev-button" onClick={() => transitionTo("idle")} type="button">
+            {text.overlay.devIdle}
+          </button>
+          <button className="hud-dev-button" onClick={() => transitionTo("listening")} type="button">
+            {text.overlay.devListening}
+          </button>
+          <button className="hud-dev-button" onClick={() => transitionTo("thinking")} type="button">
+            {text.overlay.devThinking}
+          </button>
+          <button className="hud-dev-button" onClick={() => transitionTo("speaking")} type="button">
+            {text.overlay.devSpeaking}
+          </button>
+          <button className="hud-dev-button" onClick={handleReset} type="button">
+            {text.overlay.devReset}
+          </button>
+          <button className="hud-dev-button" onClick={() => void start()} type="button">
+            {text.overlay.devMicOn}
+          </button>
+          <button className="hud-dev-button" onClick={stop} type="button">
+            {text.overlay.devMicOff}
+          </button>
+        </div>
       </section>
     </main>
   );

@@ -130,6 +130,7 @@ Definition of done:
 - `[not-done]` Реализовать dev-only debug console
 - `[in-progress]` Добавить базовую state machine: `idle`, `wake`, `listening`, `thinking`, `speaking`, `tool`, `error`
 - `[done]` Добавить cinematic speaking HUD с центральной mask-композицией
+- `[done]` Добавить отдельные HUD-состояния `idle / listening / thinking / speaking`
 
 Definition of done:
 - Overlay живет отдельно от settings
@@ -139,22 +140,30 @@ Definition of done:
 Текущее состояние phase:
 - `[in-progress]` Визуальный shell уже оформлен в cinematic HUD-направлении
 - `[done]` Есть полноэкранный speaking overlay с центральной mask-композицией
-- `[not-done]` Реальные runtime-состояния и click-through idle behavior еще не подключены
+- `[done]` Реальные runtime-состояния `idle / listening / thinking / speaking` уже подключены в overlay
+- `[not-done]` Click-through idle behavior еще не подключен
+- `[not-done]` `wake / tool / error` состояния еще не разведены
 
 ### Phase 4 — audio pipeline
 Цель: подготовить input/output audio infrastructure.
 
 Задачи:
 - `[not-done]` Реализовать выбор input/output devices
-- `[not-done]` Подключить `getUserMedia` и input meter
+- `[done]` Подключить `getUserMedia` и input meter
 - `[not-done]` Подключить playback path для remote audio
-- `[not-done]` Добавить Web Audio analyser
-- `[not-done]` Реализовать waveform из реального output audio
+- `[done]` Добавить Web Audio analyser
+- `[in-progress]` Реализовать waveform из реального output audio
 - `[not-done]` Обработать mute, device switch и fallback states
 
 Definition of done:
 - Микрофон и output devices выбираются из UI
 - На playback видна живая волна из реального аудиосигнала
+
+Текущее состояние phase:
+- `[in-progress]` Реальная waveform уже работает от input audio через Web Audio analyser
+- `[done]` HUD больше не использует полностью декоративные волны
+- `[not-done]` Output audio binding от Realtime remote stream еще не подключен
+- `[not-done]` Device picker и output switching еще не подключены
 
 ### Phase 5 — realtime voice session
 Цель: получить рабочий speech-to-speech диалог.

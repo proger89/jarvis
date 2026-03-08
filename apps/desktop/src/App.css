@@ -224,14 +224,37 @@ button {
   color: #75eaff;
 }
 
-.hud-settings-button {
-  align-self: center;
-  padding: 10px 16px;
+.hud-status-line {
+  margin: 12px 0 0;
+  max-width: 680px;
+  color: rgba(189, 241, 250, 0.82);
+  font-size: 0.98rem;
+}
+
+.hud-top-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.hud-primary-action,
+.hud-settings-button,
+.hud-dev-button {
   border: 1px solid rgba(0, 224, 255, 0.36);
   border-radius: 999px;
   color: #d6fcff;
   background: rgba(4, 30, 43, 0.68);
   box-shadow: inset 0 0 0 1px rgba(141, 228, 255, 0.05);
+}
+
+.hud-primary-action {
+  padding: 10px 18px;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.18), rgba(255, 180, 76, 0.14));
+}
+
+.hud-settings-button {
+  align-self: center;
+  padding: 10px 16px;
 }
 
 .speaking-center-stage {
@@ -249,29 +272,33 @@ button {
   gap: 8px;
 }
 
-.wave-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 92px;
+.wave-ribbon {
+  width: min(38vw, 520px);
+  height: 140px;
+  overflow: visible;
 }
 
-.wave-line span {
-  flex: 1;
-  min-width: 8px;
-  border-radius: 999px;
-  transform-origin: center;
-  animation: waveShift 1.8s ease-in-out infinite;
+.wave-trace {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.wave-line-cyan span {
-  background: linear-gradient(180deg, rgba(135, 252, 255, 0.95), rgba(0, 219, 255, 0.2));
-  box-shadow: 0 0 20px rgba(0, 219, 255, 0.34);
+.wave-trace-cyan {
+  stroke: #08d7ff;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 12px rgba(8, 215, 255, 0.55));
 }
 
-.wave-line-amber span {
-  background: linear-gradient(180deg, rgba(255, 202, 91, 0.95), rgba(255, 177, 76, 0.12));
-  box-shadow: 0 0 16px rgba(255, 177, 76, 0.24);
+.wave-trace-amber {
+  stroke: rgba(255, 186, 79, 0.95);
+  stroke-width: 2.1;
+  filter: drop-shadow(0 0 10px rgba(255, 186, 79, 0.44));
+}
+
+.wave-trace-fine {
+  stroke: rgba(187, 250, 255, 0.66);
+  stroke-width: 1.2;
 }
 
 .wave-band-left {
@@ -287,6 +314,42 @@ button {
   display: grid;
   place-items: center;
   min-height: 520px;
+}
+
+.mask-stage-idle .mask-target-ring,
+.mask-stage-thinking .mask-target-ring,
+.mask-stage-speaking .mask-target-ring,
+.mask-stage-listening .mask-target-ring {
+  position: absolute;
+  border: 1px solid rgba(0, 220, 255, 0.2);
+  border-radius: 50%;
+}
+
+.mask-target-ring-outer {
+  width: 340px;
+  height: 340px;
+}
+
+.mask-target-ring-inner {
+  width: 246px;
+  height: 246px;
+  border-color: rgba(255, 186, 79, 0.18);
+}
+
+.mask-stage-idle .mask-target-ring {
+  animation: slowPulse 3.8s ease-in-out infinite;
+}
+
+.mask-stage-listening .mask-target-ring {
+  animation: fastPulse 1.6s ease-in-out infinite;
+}
+
+.mask-stage-thinking .mask-target-ring {
+  animation: rotateSweep 2.6s linear infinite;
+}
+
+.mask-stage-speaking .mask-target-ring {
+  animation: fastPulse 1.2s ease-in-out infinite;
 }
 
 .mask-glow {
@@ -316,16 +379,27 @@ button {
     drop-shadow(0 0 54px rgba(255, 177, 76, 0.12));
 }
 
+.mask-aura {
+  fill: rgba(0, 210, 255, 0.14);
+  filter: blur(16px);
+}
+
 .mask-outline {
-  fill: rgba(10, 34, 52, 0.62);
+  fill: rgba(10, 34, 52, 0.5);
   stroke: #06d9ff;
   stroke-width: 7;
 }
 
 .mask-shell {
-  fill: rgba(10, 74, 104, 0.58);
+  fill: url(#mask-shell-gradient);
   stroke: rgba(144, 244, 255, 0.9);
   stroke-width: 4;
+}
+
+.mask-shell-top {
+  fill: rgba(255, 184, 76, 0.12);
+  stroke: rgba(126, 234, 255, 0.42);
+  stroke-width: 2;
 }
 
 .mask-faceplate {
@@ -335,14 +409,26 @@ button {
 }
 
 .mask-core {
-  fill: rgba(5, 22, 36, 0.88);
+  fill: url(#mask-core-gradient);
   stroke: rgba(117, 234, 255, 0.42);
   stroke-width: 2;
 }
 
+.mask-panel-line {
+  fill: none;
+  stroke: rgba(160, 242, 255, 0.5);
+  stroke-width: 2;
+}
+
 .mask-accent {
-  fill: #ffbe54;
+  fill: url(#mask-amber-gradient);
   stroke: rgba(255, 228, 171, 0.9);
+  stroke-width: 2;
+}
+
+.mask-side-plate {
+  fill: rgba(11, 40, 55, 0.82);
+  stroke: rgba(96, 215, 245, 0.55);
   stroke-width: 2;
 }
 
@@ -360,10 +446,16 @@ button {
 }
 
 .mask-eye-light {
-  fill: #f1ffff;
+  fill: url(#eye-glow-gradient);
   stroke: #9beeff;
   stroke-width: 2;
   filter: drop-shadow(0 0 14px rgba(151, 239, 255, 0.9));
+}
+
+.mask-eye-trail {
+  fill: none;
+  stroke: rgba(167, 247, 255, 0.76);
+  stroke-width: 2;
 }
 
 .mask-nose {
@@ -381,6 +473,61 @@ button {
   fill: rgba(255, 190, 84, 0.72);
   stroke: rgba(255, 232, 180, 0.7);
   stroke-width: 2;
+}
+
+.mask-jaw-highlight {
+  fill: rgba(176, 245, 255, 0.1);
+  stroke: rgba(176, 245, 255, 0.4);
+  stroke-width: 1.5;
+}
+
+.jarvis-mask.state-idle .mask-eye-light,
+.jarvis-mask.state-idle .mask-mouth {
+  opacity: 0.72;
+}
+
+.jarvis-mask.state-listening .mask-eye-light,
+.jarvis-mask.state-listening .mask-mouth {
+  animation: eyePulse 1.2s ease-in-out infinite;
+}
+
+.jarvis-mask.state-thinking .mask-panel-line,
+.jarvis-mask.state-thinking .mask-eye-trail {
+  animation: scanFlicker 1.4s linear infinite;
+}
+
+.jarvis-mask.state-speaking .mask-eye-light,
+.jarvis-mask.state-speaking .mask-mouth,
+.jarvis-mask.state-speaking .mask-accent {
+  animation: speakingGlow 0.85s ease-in-out infinite;
+}
+
+.mask-caption-panel {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 4px;
+  min-width: 240px;
+  padding: 12px 16px;
+  border: 1px solid rgba(0, 219, 255, 0.22);
+  border-radius: 16px;
+  text-align: center;
+  background: rgba(4, 16, 25, 0.68);
+}
+
+.mask-caption-label,
+.mask-caption-meta {
+  color: rgba(176, 239, 250, 0.76);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mask-caption-value {
+  color: #f1fdff;
+  font-size: 1.08rem;
 }
 
 .hud-footer {
@@ -405,6 +552,19 @@ button {
   box-shadow:
     inset 0 0 0 1px rgba(159, 241, 255, 0.1),
     0 0 18px rgba(0, 209, 255, 0.12);
+}
+
+.hud-dev-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  padding-bottom: 18px;
+}
+
+.hud-dev-button {
+  padding: 7px 12px;
+  font-size: 0.8rem;
 }
 
 .overlay-panel {
@@ -754,6 +914,77 @@ button {
   }
 }
 
+@keyframes slowPulse {
+  0%,
+  100% {
+    transform: scale(0.96);
+    opacity: 0.4;
+  }
+
+  50% {
+    transform: scale(1.02);
+    opacity: 0.78;
+  }
+}
+
+@keyframes fastPulse {
+  0%,
+  100% {
+    transform: scale(0.98);
+    opacity: 0.48;
+  }
+
+  50% {
+    transform: scale(1.06);
+    opacity: 0.9;
+  }
+}
+
+@keyframes rotateSweep {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes eyePulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    filter: drop-shadow(0 0 12px rgba(151, 239, 255, 0.7));
+  }
+
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 22px rgba(151, 239, 255, 1));
+  }
+}
+
+@keyframes scanFlicker {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes speakingGlow {
+  0%,
+  100% {
+    opacity: 0.74;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
 @media (max-width: 900px) {
   .settings-grid,
   .field-grid,
@@ -788,12 +1019,29 @@ button {
     grid-template-columns: 1fr 1fr;
   }
 
+  .hud-top-actions {
+    display: none;
+  }
+
+  .hud-status-line {
+    max-width: none;
+  }
+
   .hud-settings-button {
     display: none;
   }
 
   .jarvis-mask {
     width: min(62vw, 280px);
+  }
+
+  .wave-ribbon {
+    width: 100%;
+  }
+
+  .mask-caption-panel {
+    min-width: 0;
+    width: min(88vw, 280px);
   }
 
   .frame-corner {

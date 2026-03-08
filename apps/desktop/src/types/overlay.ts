@@ -1,0 +1,1 @@
+export type OverlayState = "idle" | "listening" | "thinking" | "speaking";
