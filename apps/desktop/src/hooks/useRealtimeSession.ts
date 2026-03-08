@@ -195,7 +195,6 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
   const analyserContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const analyserFrameRef = useRef<number | null>(null);
-  const respondedItemIdsRef = useRef<Set<string>>(new Set());
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptRef = useRef(0);
   const shouldStayConnectedRef = useRef(false);
@@ -245,7 +244,6 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     setToolSummary("");
     setToolSources([]);
     settlePendingOpen(false);
-    respondedItemIdsRef.current.clear();
   }
 
   function teardownLiveObjects() {
@@ -334,23 +332,6 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
 
   function rejectPendingOpen() {
     settlePendingOpen(false);
-  }
-
-  function requestAssistantResponse(itemId?: string) {
-    if (itemId) {
-      if (respondedItemIdsRef.current.has(itemId)) {
-        return;
-      }
-
-      respondedItemIdsRef.current.add(itemId);
-    }
-
-    sendClientEvent({
-      type: "response.create",
-      response: {
-        modalities: ["audio", "text"],
-      },
-    });
   }
 
   async function listAudioDevicesTool() {
@@ -682,6 +663,11 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
             },
             turn_detection: {
               type: "server_vad",
+              create_response: true,
+              interrupt_response: true,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 550,
+              threshold: 0.55,
             },
           },
         });
@@ -708,12 +694,14 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
               setConnectionState("error");
               setLastError(payload.error?.message ?? "Произошла ошибка во время разговора.");
               break;
+            case "response.audio.transcript.delta":
             case "response.audio_transcript.delta":
             case "response.text.delta":
               if (payload.delta) {
                 setAssistantSubtitle((current) => appendTranscript(current, payload.delta ?? ""));
               }
               break;
+            case "response.audio.transcript.done":
             case "response.audio_transcript.done":
             case "response.text.done":
               if (payload.transcript) {
@@ -721,16 +709,13 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
               }
               break;
             case "input_audio_buffer.speech_started":
-              interruptResponse();
               break;
             case "input_audio_buffer.speech_stopped":
-              requestAssistantResponse(payload.item_id);
               break;
             case "conversation.item.input_audio_transcription.completed":
               if (payload.transcript) {
                 setUserSubtitle(payload.transcript.trim());
               }
-              requestAssistantResponse(payload.item_id);
               break;
             case "response.output_item.added":
               if (payload.item?.type === "function_call") {
