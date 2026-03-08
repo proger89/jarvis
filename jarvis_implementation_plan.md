@@ -172,11 +172,11 @@ Definition of done:
 Задачи:
 - `[done]` Реализовать `RTCPeerConnection` на frontend
 - `[in-progress]` Реализовать Rust command для session init через `/v1/realtime/calls`
-- `[not-done]` Подать persona prompt в session instructions
-- `[not-done]` Настроить базовый session config для `gpt-realtime`
+- `[done]` Подать persona prompt в session instructions
+- `[done]` Настроить базовый session config для `gpt-realtime`
 - `[in-progress]` Обработать transcript/datachannel events
 - `[in-progress]` Подключить subtitles и VAD-driven state changes
-- `[not-done]` Поддержать interruption / barge-in
+- `[in-progress]` Поддержать interruption / barge-in
 
 Definition of done:
 - Голосовой диалог работает end-to-end
@@ -186,8 +186,12 @@ Definition of done:
 Текущее состояние phase:
 - `[in-progress]` Frontend уже поднимает WebRTC peer connection и remote audio playback
 - `[in-progress]` Native side уже выдает временный ключ для Realtime session
+- `[done]` Persona prompt уже подается в instructions при создании Realtime session
+- `[done]` Базовая session config для `gpt-realtime` и голоса уже подается с native side
 - `[in-progress]` Overlay уже реагирует на живое соединение и на уровень звука ответа
 - `[in-progress]` Overlay уже показывает простые субтитры, ошибки и состояние выполнения действия
+- `[in-progress]` Отмена ответа при новом голосе уже заложена в клиентском коде
+- `[in-progress]` Тестовый ключ подтвержден: OpenAI API и Realtime client secret endpoint отвечают успешно
 - `[not-done]` Полный end-to-end голосовой диалог еще не подтвержден с реальным API key и рабочей сессией
 
 ### Phase 6 — Jarvis identity and UX polish

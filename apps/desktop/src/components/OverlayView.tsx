@@ -28,6 +28,7 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
     assistantSubtitle,
     activeToolName,
     startSession,
+    interruptResponse,
     stopSession,
   } = useRealtimeSession({
     inputDeviceId: settings.inputDeviceId,
@@ -183,6 +184,14 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
       return;
     }
 
+    if (overlayState === "speaking" && permission === "granted" && level > speechThreshold) {
+      interruptResponse();
+      heardVoiceRef.current = true;
+      lastVoiceAtRef.current = now;
+      transitionTo("listening");
+      return;
+    }
+
     if (overlayState === "speaking" && now - lastRemoteVoiceAtRef.current > 900) {
       transitionTo("listening");
       return;
@@ -206,7 +215,7 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
     if (connectionState === "connected" && (overlayState === "idle" || overlayState === "tool" || overlayState === "error")) {
       transitionTo("listening");
     }
-  }, [activeToolName, connectionState, lastEventType, level, overlayState, permission, remoteAudioLevel]);
+  }, [activeToolName, connectionState, interruptResponse, lastEventType, level, overlayState, permission, remoteAudioLevel]);
 
   function transitionTo(nextState: OverlayState) {
     stateChangedAtRef.current = Date.now();

@@ -23,6 +23,7 @@ type UseRealtimeSessionResult = {
   assistantSubtitle: string;
   activeToolName: string;
   startSession: () => Promise<void>;
+  interruptResponse: () => void;
   stopSession: () => void;
 };
 
@@ -91,6 +92,17 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
     if (dataChannelRef.current?.readyState === "open") {
       dataChannelRef.current.send(JSON.stringify(message));
     }
+  }
+
+  function interruptResponse() {
+    if (dataChannelRef.current?.readyState !== "open") {
+      return;
+    }
+
+    sendClientEvent({ type: "response.cancel" });
+    setAssistantSubtitle("");
+    setActiveToolName("");
+    setLastEventType("response.cancelled");
   }
 
   function appendTranscript(current: string, chunk: string) {
@@ -311,6 +323,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
     assistantSubtitle,
     activeToolName,
     startSession,
+    interruptResponse,
     stopSession,
   };
 }
