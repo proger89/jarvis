@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
+import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
 import { getCopy } from "../lib/copy";
 import type { AppSettings } from "../types/settings";
 import { JarvisMask } from "./JarvisMask";
@@ -14,11 +16,14 @@ type OverlayViewProps = {
 
 export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
   const text = getCopy(settings.language);
+  const overlayWindow = getCurrentWindow();
   const { level, permission, samples, start, stop } = useAudioWaveform();
   const [overlayState, setOverlayState] = useState<OverlayState>("idle");
+  const [showDebugControls, setShowDebugControls] = useState(false);
   const stateChangedAtRef = useRef(Date.now());
   const heardVoiceRef = useRef(false);
   const lastVoiceAtRef = useRef(0);
+  const lastAppliedWindowStateRef = useRef<OverlayState | null>(null);
 
   const speakingSamples = useMemo(() => {
     const speakerBase = overlayState === "speaking" ? 0.22 : overlayState === "thinking" ? 0.1 : 0;
@@ -38,6 +43,64 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
   const stateConfig = text.overlay.statePanels[overlayState];
 
   useEffect(() => {
+    async function syncOverlayWindow() {
+      if (lastAppliedWindowStateRef.current === overlayState) {
+        return;
+      }
+
+      lastAppliedWindowStateRef.current = overlayState;
+
+      const monitor = await currentMonitor();
+      const scaleFactor = await overlayWindow.scaleFactor();
+
+      if (overlayState === "idle") {
+        const width = 420;
+        const height = 220;
+        const margin = 28;
+
+        await overlayWindow.setIgnoreCursorEvents(true);
+        await overlayWindow.setFocusable(false);
+        await overlayWindow.setAlwaysOnTop(true);
+        await overlayWindow.setSize(new LogicalSize(width, height));
+
+        if (monitor) {
+          const monitorSize = monitor.size.toLogical(scaleFactor);
+          const monitorPosition = monitor.position.toLogical(scaleFactor);
+          await overlayWindow.setPosition(
+            new LogicalPosition(
+              monitorPosition.x + monitorSize.width - width - margin,
+              monitorPosition.y + margin,
+            ),
+          );
+        }
+
+        return;
+      }
+
+      const width = 1520;
+      const height = 860;
+
+      await overlayWindow.setIgnoreCursorEvents(false);
+      await overlayWindow.setFocusable(true);
+      await overlayWindow.setAlwaysOnTop(true);
+      await overlayWindow.setSize(new LogicalSize(width, height));
+
+      if (monitor) {
+        const monitorSize = monitor.size.toLogical(scaleFactor);
+        const monitorPosition = monitor.position.toLogical(scaleFactor);
+        await overlayWindow.setPosition(
+          new LogicalPosition(
+            monitorPosition.x + (monitorSize.width - width) / 2,
+            monitorPosition.y + (monitorSize.height - height) / 2,
+          ),
+        );
+      }
+    }
+
+    void syncOverlayWindow();
+  }, [overlayState, overlayWindow]);
+
+  useEffect(() => {
     function handleKeys(event: KeyboardEvent) {
       if (event.code === "Space") {
         event.preventDefault();
@@ -47,6 +110,11 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
       if (event.code === "Escape") {
         event.preventDefault();
         handleReset();
+      }
+
+      if (event.code === "Backquote") {
+        event.preventDefault();
+        setShowDebugControls((current) => !current);
       }
     }
 
@@ -110,7 +178,7 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
   }
 
   return (
-    <main className="app-shell speaking-overlay-shell">
+    <main className={`app-shell speaking-overlay-shell overlay-state-${overlayState}`}>
       <div className="speaking-overlay-frame" aria-hidden="true">
         <span className="frame-corner frame-corner-top-left" />
         <span className="frame-corner frame-corner-top-right" />
@@ -175,29 +243,31 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
           ))}
         </footer>
 
-        <div className="hud-dev-strip">
-          <button className="hud-dev-button" onClick={() => transitionTo("idle")} type="button">
-            {text.overlay.devIdle}
-          </button>
-          <button className="hud-dev-button" onClick={() => transitionTo("listening")} type="button">
-            {text.overlay.devListening}
-          </button>
-          <button className="hud-dev-button" onClick={() => transitionTo("thinking")} type="button">
-            {text.overlay.devThinking}
-          </button>
-          <button className="hud-dev-button" onClick={() => transitionTo("speaking")} type="button">
-            {text.overlay.devSpeaking}
-          </button>
-          <button className="hud-dev-button" onClick={handleReset} type="button">
-            {text.overlay.devReset}
-          </button>
-          <button className="hud-dev-button" onClick={() => void start()} type="button">
-            {text.overlay.devMicOn}
-          </button>
-          <button className="hud-dev-button" onClick={stop} type="button">
-            {text.overlay.devMicOff}
-          </button>
-        </div>
+        {showDebugControls && (
+          <div className="hud-dev-strip">
+            <button className="hud-dev-button" onClick={() => transitionTo("idle")} type="button">
+              {text.overlay.devIdle}
+            </button>
+            <button className="hud-dev-button" onClick={() => transitionTo("listening")} type="button">
+              {text.overlay.devListening}
+            </button>
+            <button className="hud-dev-button" onClick={() => transitionTo("thinking")} type="button">
+              {text.overlay.devThinking}
+            </button>
+            <button className="hud-dev-button" onClick={() => transitionTo("speaking")} type="button">
+              {text.overlay.devSpeaking}
+            </button>
+            <button className="hud-dev-button" onClick={handleReset} type="button">
+              {text.overlay.devReset}
+            </button>
+            <button className="hud-dev-button" onClick={() => void start()} type="button">
+              {text.overlay.devMicOn}
+            </button>
+            <button className="hud-dev-button" onClick={stop} type="button">
+              {text.overlay.devMicOff}
+            </button>
+          </div>
+        )}
       </section>
     </main>
   );

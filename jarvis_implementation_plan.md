@@ -125,12 +125,13 @@ Definition of done:
 
 Задачи:
 - `[done]` Реализовать прозрачное always-on-top overlay window
-- `[not-done]` Реализовать click-through для idle mode
+- `[done]` Реализовать click-through для idle mode
 - `[done]` Реализовать settings window
 - `[not-done]` Реализовать dev-only debug console
 - `[in-progress]` Добавить базовую state machine: `idle`, `wake`, `listening`, `thinking`, `speaking`, `tool`, `error`
 - `[done]` Добавить cinematic speaking HUD с центральной mask-композицией
 - `[done]` Добавить отдельные HUD-состояния `idle / listening / thinking / speaking`
+- `[done]` Развести compact idle overlay и expanded active overlay
 
 Definition of done:
 - Overlay живет отдельно от settings
@@ -141,7 +142,7 @@ Definition of done:
 - `[in-progress]` Визуальный shell уже оформлен в cinematic HUD-направлении
 - `[done]` Есть полноэкранный speaking overlay с центральной mask-композицией
 - `[done]` Реальные runtime-состояния `idle / listening / thinking / speaking` уже подключены в overlay
-- `[not-done]` Click-through idle behavior еще не подключен
+- `[done]` Idle behavior переведен в компактный click-through режим
 - `[not-done]` `wake / tool / error` состояния еще не разведены
 
 ### Phase 4 — audio pipeline
