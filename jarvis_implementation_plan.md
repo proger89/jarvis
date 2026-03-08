@@ -255,7 +255,7 @@ Definition of done:
 Задачи:
 - `[done]` Подключить SQLite
 - `[in-progress]` Создать таблицы `profile`, `preferences`, `memory_facts`, `session_summaries`, `tool_audit_log`, `device_history`
-- `[not-done]` Реализовать rolling summaries
+- `[in-progress]` Реализовать rolling summaries
 - `[done]` Реализовать explicit facts store
 - `[in-progress]` Добавить `forget me` control в settings
 
@@ -268,7 +268,8 @@ Definition of done:
 - `[done]` Есть миграция legacy JSON-файла памяти в SQLite
 - `[in-progress]` Realtime tools уже умеют сохранять и читать простые факты через native side
 - `[in-progress]` В settings уже можно увидеть локальные факты и очистить память через `forget me`
-- `[not-done]` Rolling summaries и остальные таблицы памяти еще не добавлены
+- `[in-progress]` Короткие session summaries уже сохраняются в SQLite и видны в settings
+- `[not-done]` Остальные таблицы памяти и полноценный audit layer еще не добавлены
 
 ### Phase 10 — Windows integration and resilience
 Цель: довести приложение до usable desktop product.

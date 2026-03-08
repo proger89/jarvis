@@ -90,6 +90,16 @@ struct ClearMemoryResult {
     message: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionSummary {
+    id: i64,
+    user_summary: String,
+    assistant_summary: String,
+    tool_summary: String,
+    created_at: u64,
+}
+
 impl Default for UiSettings {
     fn default() -> Self {
         Self {
@@ -209,6 +219,19 @@ fn open_memory_db(app: &AppHandle) -> Result<Connection, String> {
         )
         .map_err(|error| error.to_string())?;
 
+    connection
+        .execute(
+            "CREATE TABLE IF NOT EXISTS session_summaries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_summary TEXT NOT NULL,
+                assistant_summary TEXT NOT NULL,
+                tool_summary TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )",
+            [],
+        )
+        .map_err(|error| error.to_string())?;
+
     migrate_legacy_memory_file(app, &connection)?;
 
     Ok(connection)
@@ -256,7 +279,58 @@ fn clear_memory_store(app: &AppHandle) -> Result<(), String> {
     connection
         .execute("DELETE FROM memory_facts", [])
         .map_err(|error| error.to_string())?;
+    connection
+        .execute("DELETE FROM session_summaries", [])
+        .map_err(|error| error.to_string())?;
     Ok(())
+}
+
+fn save_session_summary_record(
+    app: &AppHandle,
+    user_summary: &str,
+    assistant_summary: &str,
+    tool_summary: &str,
+) -> Result<(), String> {
+    let connection = open_memory_db(app)?;
+    connection
+        .execute(
+            "INSERT INTO session_summaries (user_summary, assistant_summary, tool_summary, created_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![user_summary, assistant_summary, tool_summary, current_timestamp() as i64],
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn load_session_summaries(app: &AppHandle) -> Result<Vec<SessionSummary>, String> {
+    let connection = open_memory_db(app)?;
+    let mut statement = connection
+        .prepare(
+            "SELECT id, user_summary, assistant_summary, tool_summary, created_at
+             FROM session_summaries
+             ORDER BY created_at DESC
+             LIMIT 10",
+        )
+        .map_err(|error| error.to_string())?;
+
+    let rows = statement
+        .query_map([], |row| {
+            Ok(SessionSummary {
+                id: row.get(0)?,
+                user_summary: row.get(1)?,
+                assistant_summary: row.get(2)?,
+                tool_summary: row.get(3)?,
+                created_at: row.get::<_, i64>(4)? as u64,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+
+    let mut summaries = Vec::new();
+    for row in rows {
+        summaries.push(row.map_err(|error| error.to_string())?);
+    }
+
+    Ok(summaries)
 }
 
 fn current_timestamp() -> u64 {
@@ -708,6 +782,29 @@ fn clear_memory_facts(app: AppHandle) -> Result<ClearMemoryResult, String> {
     })
 }
 
+#[tauri::command]
+fn save_session_summary(
+    app: AppHandle,
+    user_summary: String,
+    assistant_summary: String,
+    tool_summary: String,
+) -> Result<(), String> {
+    let user_summary = user_summary.trim();
+    let assistant_summary = assistant_summary.trim();
+    let tool_summary = tool_summary.trim();
+
+    if user_summary.is_empty() && assistant_summary.is_empty() && tool_summary.is_empty() {
+        return Ok(());
+    }
+
+    save_session_summary_record(&app, user_summary, assistant_summary, tool_summary)
+}
+
+#[tauri::command]
+fn list_session_summaries(app: AppHandle) -> Result<Vec<SessionSummary>, String> {
+    load_session_summaries(&app)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -729,7 +826,9 @@ pub fn run() {
             remember_fact,
             recall_fact,
             list_memory_facts,
-            clear_memory_facts
+            clear_memory_facts,
+            save_session_summary,
+            list_session_summaries
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

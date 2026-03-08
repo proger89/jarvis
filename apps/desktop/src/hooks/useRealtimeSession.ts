@@ -261,8 +261,27 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     cleanupRemoteAnalyser();
   }
 
+  function persistSessionSummary() {
+    const nextUserSummary = userSubtitle.trim();
+    const nextAssistantSummary = assistantSubtitle.trim();
+    const nextToolSummary = toolSummary.trim();
+
+    if (!nextUserSummary && !nextAssistantSummary && !nextToolSummary) {
+      return;
+    }
+
+    void invoke("save_session_summary", {
+      userSummary: nextUserSummary,
+      assistantSummary: nextAssistantSummary,
+      toolSummary: nextToolSummary,
+    }).catch(() => {
+      // Ignore summary persistence failures silently in the live session.
+    });
+  }
+
   function stopSession() {
     shouldStayConnectedRef.current = false;
+    persistSessionSummary();
     teardownLiveObjects();
     resetSessionState();
   }

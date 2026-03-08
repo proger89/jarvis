@@ -26,6 +26,14 @@ type ClearMemoryResult = {
   message: string;
 };
 
+type SessionSummary = {
+  id: number;
+  userSummary: string;
+  assistantSummary: string;
+  toolSummary: string;
+  createdAt: number;
+};
+
 type SettingsViewProps = {
   settings: AppSettings;
   apiKeyPresent: boolean;
@@ -51,6 +59,7 @@ export function SettingsView({
   const [inputDevices, setInputDevices] = useState<DeviceOption[]>([]);
   const [outputDevices, setOutputDevices] = useState<DeviceOption[]>([]);
   const [memoryFacts, setMemoryFacts] = useState<MemoryFact[]>([]);
+  const [sessionSummaries, setSessionSummaries] = useState<SessionSummary[]>([]);
   const [memoryMessage, setMemoryMessage] = useState("");
   const text = getCopy(language);
   const phaseOneChecklist = [
@@ -124,16 +133,20 @@ export function SettingsView({
   }, [text.settings.defaultDevice, text.settings.microphoneFallback, text.settings.speakerFallback]);
 
   useEffect(() => {
-    async function loadMemoryFacts() {
+    async function loadMemoryState() {
       try {
-        const facts = await invoke<MemoryFact[]>("list_memory_facts");
+        const [facts, summaries] = await Promise.all([
+          invoke<MemoryFact[]>("list_memory_facts"),
+          invoke<SessionSummary[]>("list_session_summaries"),
+        ]);
         setMemoryFacts(facts);
+        setSessionSummaries(summaries);
       } catch {
         setMemoryMessage(text.settings.memoryLoadFailed);
       }
     }
 
-    void loadMemoryFacts();
+    void loadMemoryState();
   }, [text.settings.memoryLoadFailed]);
 
   async function closeWindow() {
@@ -193,6 +206,7 @@ export function SettingsView({
     try {
       const result = await invoke<ClearMemoryResult>("clear_memory_facts");
       setMemoryFacts([]);
+      setSessionSummaries([]);
       setMemoryMessage(result.message);
     } catch {
       setMemoryMessage(text.settings.memoryClearFailed);
@@ -378,6 +392,31 @@ export function SettingsView({
                 {text.settings.forgetMeButton}
               </button>
             </div>
+          </section>
+
+          <section className="settings-section">
+            <div className="section-header">
+              <div>
+                <h2 className="overlay-title">{text.settings.summaryTitle}</h2>
+                <p className="section-copy">{text.settings.summaryDescription}</p>
+              </div>
+            </div>
+
+            {sessionSummaries.length > 0 ? (
+              <ul className="summary-list">
+                {sessionSummaries.map((summary) => (
+                  <li key={summary.id}>
+                    <div>
+                      {summary.userSummary && <strong>{text.settings.summaryUserPrefix} {summary.userSummary}</strong>}
+                      {summary.assistantSummary && <span>{text.settings.summaryAssistantPrefix} {summary.assistantSummary}</span>}
+                      {summary.toolSummary && <span>{text.settings.summaryToolPrefix} {summary.toolSummary}</span>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="inline-note">{text.settings.summaryEmpty}</p>
+            )}
           </section>
         </div>
       </section>

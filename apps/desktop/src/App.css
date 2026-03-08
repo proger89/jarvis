@@ -1105,6 +1105,35 @@ button {
   font-size: 0.85rem;
 }
 
+.summary-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.summary-list li {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(4, 18, 25, 0.58);
+}
+
+.summary-list strong,
+.summary-list span {
+  display: block;
+}
+
+.summary-list strong {
+  font-size: 0.95rem;
+}
+
+.summary-list span {
+  margin-top: 6px;
+  color: rgba(214, 236, 244, 0.68);
+  font-size: 0.85rem;
+}
+
 .danger-button {
   border-color: rgba(255, 137, 124, 0.3);
   color: #ffc4bc;
