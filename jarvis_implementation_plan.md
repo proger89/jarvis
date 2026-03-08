@@ -286,7 +286,7 @@ Definition of done:
 
 Задачи:
 - `[done]` Реализовать tray icon
-- `[not-done]` Реализовать auto-start
+- `[done]` Реализовать auto-start
 - `[done]` Реализовать multi-monitor aware overlay positioning
 - `[in-progress]` Переживать device hotplug без перезапуска
 - `[in-progress]` Добавить reconnect with backoff
@@ -298,6 +298,7 @@ Definition of done:
 
 Текущее состояние phase:
 - `[done]` Tray icon уже есть на уровне foundation
+- `[done]` В settings уже есть toggle для launch at login через Tauri autostart plugin
 - `[done]` Базовое позиционирование overlay уже учитывает текущий монитор
 - `[in-progress]` Settings и live session уже реагируют на `devicechange` и откатываются к `default`, если выбранное устройство исчезло
 - `[in-progress]` Realtime client уже умеет повторять подключение с короткой паузой после обрыва

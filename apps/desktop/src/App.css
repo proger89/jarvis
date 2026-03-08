@@ -1258,9 +1258,37 @@ button {
   gap: 8px;
 }
 
+.field-checkbox {
+  align-content: start;
+}
+
 .field label {
   color: rgba(211, 235, 245, 0.75);
   font-size: 0.88rem;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(130, 210, 255, 0.18);
+  color: #eff7fb;
+  background: rgba(4, 18, 25, 0.84);
+}
+
+.checkbox-row input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #58e4ff;
+}
+
+.checkbox-row span {
+  color: rgba(214, 236, 244, 0.78);
+  font-size: 0.9rem;
 }
 
 .field input,

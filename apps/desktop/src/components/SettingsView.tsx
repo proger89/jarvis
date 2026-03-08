@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { disable as disableAutostart, enable as enableAutostart, isEnabled as isAutostartEnabled } from "@tauri-apps/plugin-autostart";
 import { getCopy } from "../lib/copy";
 import type { AppLanguage, AppSettings, OverlayMode } from "../types/settings";
 
@@ -78,6 +79,8 @@ export function SettingsView({
   const [toolAuditLogs, setToolAuditLogs] = useState<ToolAuditRecord[]>([]);
   const [deviceHistory, setDeviceHistory] = useState<DeviceHistoryRecord[]>([]);
   const [memoryMessage, setMemoryMessage] = useState("");
+  const [autostartEnabled, setAutostartEnabled] = useState(false);
+  const [autostartMessage, setAutostartMessage] = useState("");
   const text = getCopy(language);
   const phaseOneChecklist = [
     {
@@ -99,6 +102,11 @@ export function SettingsView({
       title: text.settings.checklistTrayTitle,
       detail: text.settings.checklistTrayDetail,
       done: true,
+    },
+    {
+      title: text.settings.checklistAutostartTitle,
+      detail: text.settings.checklistAutostartDetail,
+      done: autostartEnabled,
     },
     {
       title: text.settings.checklistPackagingTitle,
@@ -169,6 +177,18 @@ export function SettingsView({
   }, [outputDeviceId, outputDevices]);
 
   useEffect(() => {
+    async function loadAutostartState() {
+      try {
+        setAutostartEnabled(await isAutostartEnabled());
+      } catch {
+        setAutostartEnabled(false);
+      }
+    }
+
+    void loadAutostartState();
+  }, []);
+
+  useEffect(() => {
     async function loadMemoryState() {
       try {
         const [facts, summaries, auditLogs, devices] = await Promise.all([
@@ -237,6 +257,24 @@ export function SettingsView({
       setKeyCheckMessage(result.message);
     } catch {
       setKeyCheckMessage(text.settings.keyCheckFailed);
+    }
+  }
+
+  async function handleAutostartToggle(event: React.ChangeEvent<HTMLInputElement>) {
+    const nextValue = event.currentTarget.checked;
+    setAutostartMessage("");
+
+    try {
+      if (nextValue) {
+        await enableAutostart();
+      } else {
+        await disableAutostart();
+      }
+
+      setAutostartEnabled(nextValue);
+      setAutostartMessage(nextValue ? text.settings.autoStartEnabled : text.settings.autoStartDisabled);
+    } catch {
+      setAutostartMessage(text.settings.autoStartToggleFailed);
     }
   }
 
@@ -319,6 +357,19 @@ export function SettingsView({
                 </select>
               </div>
 
+              <div className="field field-checkbox">
+                <label htmlFor="autostart-toggle">{text.settings.autoStartLabel}</label>
+                <label className="checkbox-row" htmlFor="autostart-toggle">
+                  <input
+                    checked={autostartEnabled}
+                    id="autostart-toggle"
+                    onChange={handleAutostartToggle}
+                    type="checkbox"
+                  />
+                  <span>{text.settings.autoStartHint}</span>
+                </label>
+              </div>
+
               <div className="field">
                 <label htmlFor="api-key">{text.settings.apiKeyLabel}</label>
                 <input
@@ -364,6 +415,7 @@ export function SettingsView({
             <p className="inline-note">
               {apiKeyPresent ? text.settings.apiKeyStored : text.settings.apiKeyMissing}
             </p>
+            {autostartMessage && <p className="inline-note">{autostartMessage}</p>}
             {keyCheckMessage && <p className="inline-note">{keyCheckMessage}</p>}
             {(saveState || statusMessage) && <p className="inline-note">{saveState || statusMessage}</p>}
 
