@@ -24,6 +24,7 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
   const {
     connectionState,
     remoteAudioLevel,
+    remoteSamples,
     lastError,
     lastEventType,
     activeToolName,
@@ -49,18 +50,32 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
   const lastVoiceAtRef = useRef(0);
   const lastRemoteVoiceAtRef = useRef(0);
   const lastAppliedWindowStateRef = useRef<OverlayState | null>(null);
+  const wakeTimerRef = useRef<number | null>(null);
 
   const speakingSamples = useMemo(() => {
-    const activeLevel = overlayState === "speaking" ? Math.max(level, remoteAudioLevel) : level;
-    const speakerBase = overlayState === "speaking" ? 0.22 : overlayState === "thinking" ? 0.1 : 0;
+    if (overlayState === "speaking") {
+      return remoteSamples.map((sample, index) => {
+        const motion = Math.abs(Math.sin(Date.now() / 280 + index * 0.4)) * 0.04;
+        return Math.min(1, sample + motion);
+      });
+    }
+
+    const speakerBase = overlayState === "thinking" ? 0.08 : 0;
     return samples.map((sample, index) => {
-      const motion = overlayState === "speaking" ? Math.abs(Math.sin(Date.now() / 250 + index * 0.55)) * 0.18 : 0;
-      const remoteLift = overlayState === "speaking" ? activeLevel * 0.5 : 0;
-      return Math.min(1, sample + speakerBase + motion + remoteLift);
+      const motion = overlayState === "thinking" ? Math.abs(Math.sin(Date.now() / 380 + index * 0.45)) * 0.06 : 0;
+      return Math.min(1, sample + speakerBase + motion);
     });
-  }, [level, overlayState, remoteAudioLevel, samples]);
+  }, [overlayState, remoteSamples, samples]);
 
   const openConfirmVisible = Boolean(pendingOpenRequest);
+
+  useEffect(() => {
+    return () => {
+      if (wakeTimerRef.current !== null) {
+        window.clearTimeout(wakeTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     function handleOnline() {
@@ -154,9 +169,13 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
     }
 
     if (connectionState === "disconnected") {
-      if (overlayState !== "idle") {
+      if (overlayState !== "idle" && overlayState !== "wake") {
         transitionTo("idle");
       }
+      return;
+    }
+
+    if (overlayState === "wake") {
       return;
     }
 
@@ -237,12 +256,25 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
 
     heardVoiceRef.current = false;
     lastVoiceAtRef.current = 0;
-    await startSession();
+    transitionTo("wake");
+
+    if (wakeTimerRef.current !== null) {
+      window.clearTimeout(wakeTimerRef.current);
+    }
+
+    wakeTimerRef.current = window.setTimeout(() => {
+      wakeTimerRef.current = null;
+      void startSession();
+    }, 320);
   }
 
   function handleReset() {
     heardVoiceRef.current = false;
     lastVoiceAtRef.current = 0;
+    if (wakeTimerRef.current !== null) {
+      window.clearTimeout(wakeTimerRef.current);
+      wakeTimerRef.current = null;
+    }
     stopSession();
     transitionTo("idle");
   }
@@ -315,6 +347,10 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
                 <strong>{remoteAudioLevel.toFixed(3)}</strong>
               </div>
               <div>
+                <span>Remote peak</span>
+                <strong>{Math.max(...remoteSamples).toFixed(3)}</strong>
+              </div>
+              <div>
                 <span>Input level</span>
                 <strong>{level.toFixed(3)}</strong>
               </div>
@@ -333,6 +369,9 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
             <div className="hud-dev-strip">
               <button className="hud-dev-button" onClick={() => transitionTo("idle")} type="button">
                 {text.overlay.devIdle}
+              </button>
+              <button className="hud-dev-button" onClick={() => transitionTo("wake")} type="button">
+                {text.overlay.devWake}
               </button>
               <button className="hud-dev-button" onClick={() => transitionTo("listening")} type="button">
                 {text.overlay.devListening}

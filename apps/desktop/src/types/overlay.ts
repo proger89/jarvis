@@ -1,1 +1,1 @@
-export type OverlayState = "idle" | "listening" | "thinking" | "speaking" | "tool" | "error";
+export type OverlayState = "idle" | "wake" | "listening" | "thinking" | "speaking" | "tool" | "error";

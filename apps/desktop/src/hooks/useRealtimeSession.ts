@@ -3,6 +3,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { AppSettings } from "../types/settings";
 
+const SAMPLE_COUNT = 32;
+
+function createEmptySamples() {
+  return Array.from({ length: SAMPLE_COUNT }, () => 0);
+}
+
 const realtimeTools = [
   {
     type: "function",
@@ -152,6 +158,7 @@ type UseRealtimeSessionOptions = {
 type UseRealtimeSessionResult = {
   connectionState: RealtimeConnectionState;
   remoteAudioLevel: number;
+  remoteSamples: number[];
   lastError: string;
   lastEventType: string;
   userSubtitle: string;
@@ -171,6 +178,7 @@ type UseRealtimeSessionResult = {
 export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPatch }: UseRealtimeSessionOptions): UseRealtimeSessionResult {
   const [connectionState, setConnectionState] = useState<RealtimeConnectionState>("disconnected");
   const [remoteAudioLevel, setRemoteAudioLevel] = useState(0);
+  const [remoteSamples, setRemoteSamples] = useState<number[]>(() => createEmptySamples());
   const [lastError, setLastError] = useState("");
   const [lastEventType, setLastEventType] = useState("");
   const [userSubtitle, setUserSubtitle] = useState("");
@@ -220,6 +228,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     }
 
     setRemoteAudioLevel(0);
+    setRemoteSamples(createEmptySamples());
   }
 
   function resetSessionState() {
@@ -568,11 +577,29 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
       analyser.getByteTimeDomainData(timeDomain);
 
       let energy = 0;
+      const nextSamples = createEmptySamples();
+      const bucketSize = Math.floor(timeDomain.length / SAMPLE_COUNT);
+
+      for (let sampleIndex = 0; sampleIndex < SAMPLE_COUNT; sampleIndex += 1) {
+        const startIndex = sampleIndex * bucketSize;
+        const endIndex = sampleIndex === SAMPLE_COUNT - 1 ? timeDomain.length : startIndex + bucketSize;
+        let bucketPeak = 0;
+
+        for (let index = startIndex; index < endIndex; index += 1) {
+          const centered = (timeDomain[index] - 128) / 128;
+          const amplitude = Math.abs(centered);
+          bucketPeak = Math.max(bucketPeak, amplitude);
+        }
+
+        nextSamples[sampleIndex] = Math.min(1, bucketPeak * 1.85);
+      }
+
       for (let index = 0; index < timeDomain.length; index += 1) {
         const centered = (timeDomain[index] - 128) / 128;
         energy += centered * centered;
       }
 
+      setRemoteSamples(nextSamples);
       setRemoteAudioLevel(Math.min(1, Math.sqrt(energy / timeDomain.length) * 2.6));
     };
 
@@ -820,6 +847,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
   return {
     connectionState,
     remoteAudioLevel,
+    remoteSamples,
     lastError,
     lastEventType,
     userSubtitle,

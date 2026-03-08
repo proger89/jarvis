@@ -314,6 +314,7 @@ button {
 }
 
 .mask-stage-idle .mask-target-ring,
+.mask-stage-wake .mask-target-ring,
 .mask-stage-thinking .mask-target-ring,
 .mask-stage-speaking .mask-target-ring,
 .mask-stage-listening .mask-target-ring {
@@ -339,6 +340,10 @@ button {
 
 .mask-stage-listening .mask-target-ring {
   animation: fastPulse 1.6s ease-in-out infinite;
+}
+
+.mask-stage-wake .mask-target-ring {
+  animation: fastPulse 0.9s ease-in-out infinite;
 }
 
 .mask-stage-thinking .mask-target-ring {
@@ -477,6 +482,13 @@ button {
 .jarvis-mask.state-listening .helmet-shell,
 .jarvis-mask.state-listening .helmet-aura {
   animation: eyePulse 1.2s ease-in-out infinite;
+}
+
+.jarvis-mask.state-wake .helmet-eye-glow,
+.jarvis-mask.state-wake .helmet-shell,
+.jarvis-mask.state-wake .helmet-aura,
+.jarvis-mask.state-wake .helmet-amber-accent {
+  animation: eyePulse 0.8s ease-in-out infinite;
 }
 
 .jarvis-mask.state-thinking .helmet-shell-highlight,

@@ -24,6 +24,7 @@ const copy = {
       badgeSecureKeyPending: "НУЖЕН КЛЮЧ",
       reconnectClue: "Повторяю подключение",
       devIdle: "Ждет",
+      devWake: "Пробуждение",
       devListening: "Слушает",
       devThinking: "Думает",
       devSpeaking: "Говорит",
@@ -54,6 +55,7 @@ const copy = {
       fallbackWait: "Подождать",
       stateBadge: {
         idle: "ЖДЕТ",
+        wake: "ПРОБУЖДЕНИЕ",
         listening: "СЛУШАЕТ",
         thinking: "ДУМАЕТ",
         speaking: "ГОВОРИТ",
@@ -66,6 +68,12 @@ const copy = {
           headline: "Спокойный режим",
           meta: "Ждет слово для вызова или нажатие кнопки",
           description: "Помощник тихо ждет, пока к нему обратятся.",
+        },
+        wake: {
+          label: "Состояние",
+          headline: "Пробуждается",
+          meta: "Короткий переход перед прослушиванием",
+          description: "Помощник активировался и сейчас переходит в режим прослушивания.",
         },
         listening: {
           label: "Состояние",
@@ -197,6 +205,7 @@ const copy = {
       badgeSecureKeyPending: "SECURE KEY PENDING",
       reconnectClue: "Retrying connection",
       devIdle: "Idle",
+      devWake: "Wake",
       devListening: "Listening",
       devThinking: "Thinking",
       devSpeaking: "Speaking",
@@ -227,6 +236,7 @@ const copy = {
       fallbackWait: "Wait",
       stateBadge: {
         idle: "IDLE",
+        wake: "WAKE",
         listening: "LISTENING",
         thinking: "THINKING",
         speaking: "SPEAKING",
@@ -239,6 +249,12 @@ const copy = {
           headline: "Standby presence",
           meta: "Awaiting wake phrase or manual activation",
           description: "The HUD stays calm, breathing lightly, and waits for a wake event.",
+        },
+        wake: {
+          label: "Overlay state",
+          headline: "Waking up",
+          meta: "Short transition before active listening",
+          description: "The assistant has been activated and is shifting into listening mode.",
         },
         listening: {
           label: "Overlay state",

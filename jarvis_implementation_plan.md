@@ -143,10 +143,10 @@ Definition of done:
 Текущее состояние phase:
 - `[in-progress]` Визуальный shell уже оформлен в cinematic HUD-направлении
 - `[done]` Есть компактный centered overlay с центральной helmet-композицией и волнами по бокам
-- `[done]` Реальные runtime-состояния `idle / listening / thinking / speaking` уже подключены в overlay
+- `[done]` Реальные runtime-состояния `idle / wake / listening / thinking / speaking` уже подключены в overlay
 - `[done]` Idle behavior переведен в компактный click-through режим
 - `[done]` Есть dev-only debug console, вызываемая только в dev-сборке
-- `[in-progress]` `tool / error` состояния уже разведены, `wake` еще не добавлен отдельно
+- `[in-progress]` `tool / error` состояния уже разведены, но еще не доведены до финального UX
 
 ### Phase 4 — audio pipeline
 Цель: подготовить input/output audio infrastructure.
@@ -167,6 +167,7 @@ Definition of done:
 - `[in-progress]` Реальная waveform уже работает от input audio через Web Audio analyser
 - `[done]` HUD больше не использует полностью декоративные волны
 - `[in-progress]` Output audio binding от Realtime remote stream уже заведен через WebRTC track playback
+- `[in-progress]` Speaking wave уже может использовать реальные remote output samples из WebRTC audio analyser
 - `[in-progress]` Device picker уже подключен, output sink selection пробуется через `setSinkId`, а hotplug fallback уже откатывает устройство к `default`
 
 ### Phase 5 — realtime voice session
@@ -193,6 +194,7 @@ Definition of done:
 - `[done]` Базовая session config для `gpt-realtime` и голоса уже подается с native side
 - `[done]` Renderer больше не получает временный ключ для Realtime
 - `[in-progress]` Overlay уже реагирует на живое соединение и на уровень звука ответа
+- `[in-progress]` Overlay уже реагирует не только на уровень ответа, но и на реальные remote audio samples во время speaking
 - `[in-progress]` Overlay уже показывает простые субтитры, ошибки и состояние выполнения действия
 - `[in-progress]` Отмена ответа при новом голосе уже заложена в клиентском коде
 - `[in-progress]` Начало речи прерывает ответ, а окончание реплики автоматически запускает новый ответ
@@ -351,7 +353,7 @@ Definition of done:
 ## 5. Что делать следующим шагом
 
 Следующий исполнимый шаг по порядку:
-- `[next]` Закрыть остатки overlay state machine
+- `[next]` Закрыть остатки overlay state machine для `tool / error` UX
 - `[next]` Затем добить output audio / fallback path и подтвердить end-to-end Realtime voice session
 
 ## 6. Критерии приемки MVP
