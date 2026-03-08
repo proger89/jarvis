@@ -29,11 +29,9 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
     assistantSubtitle,
     activeToolName,
     toolSummary,
-    toolSources,
     pendingOpenRequest,
     startSession,
     interruptResponse,
-    requestOpenApproval,
     confirmPendingOpen,
     rejectPendingOpen,
     stopSession,
@@ -61,53 +59,7 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
     });
   }, [level, overlayState, remoteAudioLevel, samples]);
 
-  const systemBadges = [
-    text.overlay.stateBadge[overlayState],
-    connectionState === "connected"
-      ? text.overlay.badgeLiveConnection
-      : permission === "granted"
-        ? text.overlay.badgeLowLatency
-        : text.overlay.badgeMicRequired,
-    isOnline ? settings.wakeWord : text.overlay.badgeOffline,
-    apiKeyPresent ? text.overlay.badgeSearchReady : text.overlay.badgeSecureKeyPending,
-  ];
-
-  const stateConfig = text.overlay.statePanels[overlayState];
-  const subtitleVisible = Boolean(userSubtitle || assistantSubtitle || activeToolName || lastError);
-  const sourceCardsVisible = toolSources.length > 0;
   const openConfirmVisible = Boolean(pendingOpenRequest);
-  const reconnecting = connectionState === "connecting" && lastError.includes(text.overlay.reconnectClue);
-  const fallbackCard = !apiKeyPresent
-    ? {
-        title: text.overlay.fallbackNoKeyTitle,
-        body: text.overlay.fallbackNoKeyBody,
-        action: text.overlay.fallbackOpenSettings,
-      }
-    : !isOnline
-      ? {
-          title: text.overlay.fallbackOfflineTitle,
-          body: text.overlay.fallbackOfflineBody,
-          action: text.overlay.fallbackRetry,
-        }
-      : permission === "denied"
-        ? {
-            title: text.overlay.fallbackMicDeniedTitle,
-            body: text.overlay.fallbackMicDeniedBody,
-            action: text.overlay.fallbackRetry,
-          }
-        : permission === "unavailable"
-          ? {
-              title: text.overlay.fallbackMicMissingTitle,
-              body: text.overlay.fallbackMicMissingBody,
-              action: text.overlay.fallbackRetry,
-            }
-          : reconnecting
-            ? {
-                title: text.overlay.fallbackReconnectTitle,
-                body: lastError,
-                action: text.overlay.fallbackWait,
-              }
-            : null;
 
   useEffect(() => {
     function handleOnline() {
@@ -137,32 +89,8 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
       const monitor = await currentMonitor();
       const scaleFactor = await overlayWindow.scaleFactor();
 
-      if (overlayState === "idle") {
-        const width = 420;
-        const height = 220;
-        const margin = 28;
-
-        await overlayWindow.setIgnoreCursorEvents(true);
-        await overlayWindow.setFocusable(false);
-        await overlayWindow.setAlwaysOnTop(false);
-        await overlayWindow.setSize(new LogicalSize(width, height));
-
-        if (monitor) {
-          const monitorSize = monitor.size.toLogical(scaleFactor);
-          const monitorPosition = monitor.position.toLogical(scaleFactor);
-          await overlayWindow.setPosition(
-            new LogicalPosition(
-              monitorPosition.x + monitorSize.width - width - margin,
-              monitorPosition.y + margin,
-            ),
-          );
-        }
-
-        return;
-      }
-
-      const width = 1520;
-      const height = 860;
+      const width = overlayState === "idle" ? 640 : 1040;
+      const height = overlayState === "idle" ? 280 : 500;
       const showAboveWindows = settings.overlayMode === "focus";
 
       await overlayWindow.setIgnoreCursorEvents(false);
@@ -325,10 +253,6 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
     }
   }
 
-  async function handleSourceCardOpen(title: string, url: string) {
-    await requestOpenApproval({ title, url });
-  }
-
   function handleReset() {
     heardVoiceRef.current = false;
     lastVoiceAtRef.current = 0;
@@ -343,130 +267,37 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
 
   return (
     <main className={`app-shell speaking-overlay-shell overlay-state-${overlayState}`}>
-      <div className="speaking-overlay-frame" aria-hidden="true">
-        <span className="frame-corner frame-corner-top-left" />
-        <span className="frame-corner frame-corner-top-right" />
-        <span className="frame-corner frame-corner-bottom-left" />
-        <span className="frame-corner frame-corner-bottom-right" />
-      </div>
-
-      <div className="hud-grid" aria-hidden="true" />
-      <div className="hud-stars" aria-hidden="true">
-        {Array.from({ length: 42 }, (_, index) => (
-          <span key={index} className={`star star-${(index % 6) + 1}`} />
-        ))}
-      </div>
-
       <section className="speaking-overlay-panel">
-        <header className="speaking-header">
-          <div>
-            <p className="speaking-title">{text.overlay.hudTitle}</p>
-            <p className="speaking-subtitle">
-              {settings.addressTitle}, {text.overlay.hudSubtitle}
-            </p>
-            <p className="hud-status-line">{fallbackCard?.body || lastError || stateConfig.description}</p>
-          </div>
-          <div className="hud-top-actions">
-            <button className="hud-primary-action" onClick={() => void handlePrimaryAction()} type="button">
-              {connectionState === "connected" || connectionState === "connecting"
-                ? text.overlay.pauseVoice
-                : text.overlay.activateVoice}
-            </button>
-            <button className="hud-settings-button" onClick={openSettings} type="button">
-              {text.overlay.openSettings}
-            </button>
-          </div>
-        </header>
-
         <div className="speaking-center-stage">
           <div className="wave-band wave-band-left" aria-hidden="true">
             <WaveRibbon className="wave-ribbon" samples={speakingSamples} />
           </div>
 
-          <div className={`mask-stage mask-stage-${overlayState}`}>
+          <button className={`mask-stage mask-stage-${overlayState}`} onClick={() => void handlePrimaryAction()} type="button">
             <div className="mask-glow mask-glow-cyan" />
             <div className="mask-glow mask-glow-amber" />
             <div className="mask-target-ring mask-target-ring-outer" />
             <div className="mask-target-ring mask-target-ring-inner" />
             <JarvisMask audioLevel={Math.max(level, remoteAudioLevel)} state={overlayState} />
-            <div className="mask-caption-panel">
-              <span className="mask-caption-label">{stateConfig.label}</span>
-              <strong className="mask-caption-value">{stateConfig.headline}</strong>
-              <span className="mask-caption-meta">{stateConfig.meta}</span>
-            </div>
-          </div>
+          </button>
 
           <div className="wave-band wave-band-right" aria-hidden="true">
             <WaveRibbon className="wave-ribbon" mirrored samples={speakingSamples} />
           </div>
         </div>
 
-        <footer className="hud-footer">
-          {systemBadges.map((badge) => (
-            <span key={badge} className="hud-pill">
-              {badge}
-            </span>
-          ))}
-        </footer>
+        {(lastError || toolSummary || activeToolName || userSubtitle || assistantSubtitle) && (
+          <section className="overlay-mini-status">
+            <p>{lastError || toolSummary || assistantSubtitle || userSubtitle || activeToolName}</p>
+          </section>
+        )}
 
-        {fallbackCard && (
-          <section className="fallback-panel">
-            <div>
-              <p className="fallback-title">{fallbackCard.title}</p>
-              <p className="fallback-copy">{fallbackCard.body}</p>
-            </div>
-            <button className="fallback-button" onClick={() => void handleFallbackAction()} type="button">
-              {fallbackCard.action}
+        {(!apiKeyPresent || !isOnline || permission === "denied" || permission === "unavailable") && (
+          <div className="overlay-mini-actions">
+            <button className="hud-settings-button" onClick={() => void handleFallbackAction()} type="button">
+              {!apiKeyPresent ? text.overlay.fallbackOpenSettings : text.overlay.fallbackRetry}
             </button>
-          </section>
-        )}
-
-        {subtitleVisible && (
-          <section className="subtitle-panel">
-            {userSubtitle && (
-              <p className="subtitle-line subtitle-line-user">
-                <span>{text.overlay.youLabel}</span>
-                <strong>{userSubtitle}</strong>
-              </p>
-            )}
-            {activeToolName && (
-              <p className="subtitle-line subtitle-line-tool">
-                <span>{text.overlay.actionLabel}</span>
-                <strong>{text.overlay.actionPrefix} {activeToolName}</strong>
-              </p>
-            )}
-            {assistantSubtitle && (
-              <p className="subtitle-line subtitle-line-assistant">
-                <span>{text.overlay.jarvisLabel}</span>
-                <strong>{assistantSubtitle}</strong>
-              </p>
-            )}
-            {lastError && (
-              <p className="subtitle-line subtitle-line-error">
-                <span>{text.overlay.errorLabel}</span>
-                <strong>{lastError}</strong>
-              </p>
-            )}
-          </section>
-        )}
-
-        {sourceCardsVisible && (
-          <section className="source-cards">
-            {toolSummary && <p className="source-cards-summary">{toolSummary}</p>}
-            <div className="source-cards-grid">
-              {toolSources.map((source) => (
-                <button
-                  key={source.url}
-                  className="source-card"
-                  onClick={() => void handleSourceCardOpen(source.title, source.url)}
-                  type="button"
-                >
-                  <p className="source-card-title">{source.title}</p>
-                  <p className="source-card-url">{source.url}</p>
-                </button>
-              ))}
-            </div>
-          </section>
+          </div>
         )}
 
         {openConfirmVisible && pendingOpenRequest && (
