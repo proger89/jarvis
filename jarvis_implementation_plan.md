@@ -303,7 +303,7 @@ Definition of done:
 
 Задачи:
 - `[done]` Настроить production build для Windows
-- `[in-progress]` Проверить packaged app launch вне dev-среды
+- `[done]` Проверить packaged app launch вне dev-среды
 - `[not-done]` Подготовить иконки, shortcut и installer flow
 - `[not-done]` Проверить первый-run UX: ключ, устройства, тест голоса, wake word
 
@@ -313,7 +313,8 @@ Definition of done:
 
 Текущее состояние phase:
 - `[done]` `npm --prefix apps/desktop run tauri build` реально собирает Windows bundles: MSI и NSIS
-- `[in-progress]` Release executable реально стартует вне dev-сервера; installer-based first-run path все еще не подтвержден
+- `[done]` Release executable реально стартует вне dev-сервера
+- `[done]` NSIS silent install в temp-каталог проходит, и установленный exe реально стартует
 - `[not-done]` Shortcut, installer UX и onboarding smoke еще не подтверждены
 
 ## 4. Что уже сделано по факту
