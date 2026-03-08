@@ -36,6 +36,7 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
   });
   const [overlayState, setOverlayState] = useState<OverlayState>("idle");
   const [showDebugControls, setShowDebugControls] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const stateChangedAtRef = useRef(Date.now());
   const heardVoiceRef = useRef(false);
   const lastVoiceAtRef = useRef(0);
@@ -59,12 +60,61 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
       : permission === "granted"
         ? text.overlay.badgeLowLatency
         : text.overlay.badgeMicRequired,
-    settings.wakeWord,
+    isOnline ? settings.wakeWord : text.overlay.badgeOffline,
     apiKeyPresent ? text.overlay.badgeSearchReady : text.overlay.badgeSecureKeyPending,
   ];
 
   const stateConfig = text.overlay.statePanels[overlayState];
   const subtitleVisible = Boolean(userSubtitle || assistantSubtitle || activeToolName || lastError);
+  const reconnecting = connectionState === "connecting" && lastError.includes(text.overlay.reconnectClue);
+  const fallbackCard = !apiKeyPresent
+    ? {
+        title: text.overlay.fallbackNoKeyTitle,
+        body: text.overlay.fallbackNoKeyBody,
+        action: text.overlay.fallbackOpenSettings,
+      }
+    : !isOnline
+      ? {
+          title: text.overlay.fallbackOfflineTitle,
+          body: text.overlay.fallbackOfflineBody,
+          action: text.overlay.fallbackRetry,
+        }
+      : permission === "denied"
+        ? {
+            title: text.overlay.fallbackMicDeniedTitle,
+            body: text.overlay.fallbackMicDeniedBody,
+            action: text.overlay.fallbackRetry,
+          }
+        : permission === "unavailable"
+          ? {
+              title: text.overlay.fallbackMicMissingTitle,
+              body: text.overlay.fallbackMicMissingBody,
+              action: text.overlay.fallbackRetry,
+            }
+          : reconnecting
+            ? {
+                title: text.overlay.fallbackReconnectTitle,
+                body: lastError,
+                action: text.overlay.fallbackWait,
+              }
+            : null;
+
+  useEffect(() => {
+    function handleOnline() {
+      setIsOnline(true);
+    }
+
+    function handleOffline() {
+      setIsOnline(false);
+    }
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     async function syncOverlayWindow() {
@@ -224,6 +274,11 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
 
   async function handlePrimaryAction() {
     if (!apiKeyPresent) {
+      await openSettings();
+      return;
+    }
+
+    if (!isOnline) {
       return;
     }
 
@@ -242,6 +297,22 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
     heardVoiceRef.current = false;
     lastVoiceAtRef.current = 0;
     await startSession();
+  }
+
+  async function handleFallbackAction() {
+    if (!apiKeyPresent) {
+      await openSettings();
+      return;
+    }
+
+    if (permission !== "granted") {
+      await start();
+      return;
+    }
+
+    if (isOnline && connectionState !== "connected" && connectionState !== "connecting") {
+      await startSession();
+    }
   }
 
   function handleReset() {
@@ -279,7 +350,7 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
             <p className="speaking-subtitle">
               {settings.addressTitle}, {text.overlay.hudSubtitle}
             </p>
-            <p className="hud-status-line">{lastError || stateConfig.description}</p>
+            <p className="hud-status-line">{fallbackCard?.body || lastError || stateConfig.description}</p>
           </div>
           <div className="hud-top-actions">
             <button className="hud-primary-action" onClick={() => void handlePrimaryAction()} type="button">
@@ -323,6 +394,18 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
             </span>
           ))}
         </footer>
+
+        {fallbackCard && (
+          <section className="fallback-panel">
+            <div>
+              <p className="fallback-title">{fallbackCard.title}</p>
+              <p className="fallback-copy">{fallbackCard.body}</p>
+            </div>
+            <button className="fallback-button" onClick={() => void handleFallbackAction()} type="button">
+              {fallbackCard.action}
+            </button>
+          </section>
+        )}
 
         {subtitleVisible && (
           <section className="subtitle-panel">

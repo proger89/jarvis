@@ -262,7 +262,7 @@ Definition of done:
 - `[not-done]` Реализовать multi-monitor aware overlay positioning
 - `[not-done]` Переживать device hotplug без перезапуска
 - `[in-progress]` Добавить reconnect with backoff
-- `[not-done]` Добавить fallback states для invalid key, denied mic, dropped network, unstable wake word
+- `[in-progress]` Добавить fallback states для invalid key, denied mic, dropped network, unstable wake word
 
 Definition of done:
 - Приложение стабильно переживает типовые Windows-сбои
@@ -272,6 +272,7 @@ Definition of done:
 - `[done]` Tray icon уже есть на уровне foundation
 - `[done]` Базовое позиционирование overlay уже учитывает текущий монитор
 - `[in-progress]` Realtime client уже умеет повторять подключение с короткой паузой после обрыва
+- `[in-progress]` В UI уже есть понятные fallback-сценарии для отсутствия ключа, микрофона, сети и для переподключения
 - `[not-done]` Полное покрытие hotplug/fallback состояний еще не завершено
 
 ### Phase 11 — packaging and release readiness

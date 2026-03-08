@@ -633,6 +633,44 @@ button {
   backdrop-filter: blur(10px);
 }
 
+.fallback-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-top: 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 191, 93, 0.22);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(31, 20, 8, 0.78), rgba(22, 12, 5, 0.9));
+}
+
+.fallback-title,
+.fallback-copy {
+  margin: 0;
+}
+
+.fallback-title {
+  color: #ffe4b2;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.fallback-copy {
+  margin-top: 4px;
+  color: rgba(255, 235, 206, 0.78);
+  font-size: 0.92rem;
+}
+
+.fallback-button {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 191, 93, 0.38);
+  background: rgba(84, 48, 9, 0.7);
+  color: #fff0cf;
+}
+
 .subtitle-line {
   display: grid;
   gap: 3px;
@@ -675,6 +713,10 @@ button {
 }
 
 .overlay-state-idle .subtitle-panel {
+  display: none;
+}
+
+.overlay-state-idle .fallback-panel {
   display: none;
 }
 
@@ -1173,6 +1215,12 @@ button {
   }
 
   .subtitle-panel {
+    padding: 12px 14px;
+  }
+
+  .fallback-panel {
+    flex-direction: column;
+    align-items: stretch;
     padding: 12px 14px;
   }
 
