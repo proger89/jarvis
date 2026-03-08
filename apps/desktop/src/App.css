@@ -204,10 +204,10 @@ button {
   border-radius: 28px;
   border: 0;
   background:
-    radial-gradient(circle at 50% 44%, rgba(0, 186, 255, 0.08), transparent 26%),
-    radial-gradient(circle at 50% 58%, rgba(255, 177, 64, 0.05), transparent 24%),
-    rgba(3, 10, 18, 0.16);
-  backdrop-filter: blur(3px);
+    radial-gradient(circle at 50% 44%, rgba(0, 186, 255, 0.035), transparent 26%),
+    radial-gradient(circle at 50% 58%, rgba(255, 177, 64, 0.025), transparent 24%),
+    rgba(3, 10, 18, 0.03);
+  backdrop-filter: blur(1px);
 }
 
 .overlay-state-idle .speaking-overlay-panel {
@@ -276,19 +276,19 @@ button {
 
 .wave-trace-cyan {
   stroke: #08d7ff;
-  stroke-width: 2.1;
-  filter: drop-shadow(0 0 8px rgba(8, 215, 255, 0.44));
+  stroke-width: 1.7;
+  filter: drop-shadow(0 0 6px rgba(8, 215, 255, 0.36));
 }
 
 .wave-trace-amber {
   stroke: rgba(255, 186, 79, 0.95);
-  stroke-width: 1.4;
-  filter: drop-shadow(0 0 7px rgba(255, 186, 79, 0.32));
+  stroke-width: 1.05;
+  filter: drop-shadow(0 0 5px rgba(255, 186, 79, 0.24));
 }
 
 .wave-trace-fine {
-  stroke: rgba(187, 250, 255, 0.66);
-  stroke-width: 1.2;
+  stroke: rgba(187, 250, 255, 0.54);
+  stroke-width: 0.95;
 }
 
 .wave-band-left {
@@ -318,7 +318,7 @@ button {
 .mask-stage-speaking .mask-target-ring,
 .mask-stage-listening .mask-target-ring {
   position: absolute;
-  border: 1px solid rgba(0, 220, 255, 0.2);
+  border: 1px solid rgba(0, 220, 255, 0.12);
   border-radius: 50%;
 }
 
@@ -330,7 +330,7 @@ button {
 .mask-target-ring-inner {
   width: 132px;
   height: 132px;
-  border-color: rgba(255, 186, 79, 0.18);
+  border-color: rgba(255, 186, 79, 0.12);
 }
 
 .mask-stage-idle .mask-target-ring {
@@ -362,29 +362,28 @@ button {
 .mask-glow {
   position: absolute;
   border-radius: 50%;
-  filter: blur(18px);
+  filter: blur(20px);
 }
 
 .mask-glow-cyan {
   width: 170px;
   height: 180px;
-  background: radial-gradient(circle, rgba(157, 221, 255, 0.22), rgba(0, 190, 255, 0));
+  background: radial-gradient(circle, rgba(157, 221, 255, 0.12), rgba(0, 190, 255, 0));
 }
 
 .mask-glow-amber {
   width: 120px;
   height: 120px;
   bottom: 18px;
-  background: radial-gradient(circle, rgba(255, 166, 51, 0.28), rgba(255, 184, 76, 0));
+  background: radial-gradient(circle, rgba(255, 166, 51, 0.1), rgba(255, 184, 76, 0));
 }
 
 .jarvis-mask {
   width: min(18vw, 170px);
   height: auto;
   filter:
-    drop-shadow(0 18px 28px rgba(0, 0, 0, 0.36))
-    drop-shadow(0 0 20px rgba(255, 188, 89, 0.18))
-    drop-shadow(0 0 42px rgba(116, 193, 255, 0.16));
+    drop-shadow(0 0 14px rgba(255, 188, 89, 0.09))
+    drop-shadow(0 0 24px rgba(116, 193, 255, 0.12));
 }
 
 .overlay-state-idle .jarvis-mask {
@@ -392,38 +391,36 @@ button {
 }
 
 .helmet-aura {
-  fill: rgba(255, 183, 64, 0.12);
-  filter: blur(22px);
+  fill: rgba(24, 198, 255, 0.08);
+  filter: blur(20px);
+}
+
+.helmet-core-glow {
+  fill: url(#hud-core-glow);
 }
 
 .helmet-shell {
-  fill: url(#helmet-shell-red);
-  stroke: rgba(255, 164, 140, 0.5);
-  stroke-width: 5;
+  fill: rgba(0, 0, 0, 0);
+  stroke: url(#hud-cyan);
+  stroke-width: 5.5;
 }
 
 .helmet-crown,
 .helmet-crest,
 .helmet-side-shell {
-  fill: url(#helmet-shell-red);
+  fill: none;
+  stroke: rgba(77, 225, 255, 0.86);
+  stroke-width: 3.2;
 }
 
 .helmet-faceplate,
-.helmet-gold-edge,
-.helmet-mouth-guard,
-.helmet-cheek-shine,
 .helmet-nose-plate {
-  fill: url(#helmet-gold);
+  fill: none;
+  stroke: rgba(160, 239, 255, 0.72);
 }
 
 .helmet-faceplate {
-  stroke: rgba(255, 241, 174, 0.32);
-  stroke-width: 2.4;
-}
-
-.helmet-gold-edge,
-.helmet-cheek-shine {
-  fill: url(#helmet-gold-edge);
+  stroke-width: 3.4;
 }
 
 .helmet-brow-line,
@@ -436,39 +433,39 @@ button {
 
 .helmet-brow-line,
 .helmet-jaw-line {
-  stroke: rgba(93, 24, 16, 0.56);
-  stroke-width: 4;
+  stroke: rgba(135, 237, 255, 0.58);
+  stroke-width: 2.2;
 }
 
 .helmet-mouth-line {
-  stroke: rgba(89, 28, 17, 0.74);
-  stroke-width: 6;
+  stroke: url(#hud-amber);
+  stroke-width: 4.2;
 }
 
 .helmet-shell-highlight {
-  stroke: rgba(255, 210, 199, 0.42);
-  stroke-width: 3;
+  stroke: rgba(255, 183, 64, 0.8);
+  stroke-width: 2;
 }
 
 .helmet-eye-frame {
-  fill: rgba(250, 251, 255, 0.1);
-  stroke: rgba(225, 244, 255, 0.72);
-  stroke-width: 1.6;
+  fill: none;
+  stroke: rgba(171, 236, 255, 0.7);
+  stroke-width: 1.4;
 }
 
 .helmet-eye-glow {
-  fill: url(#helmet-eyes);
-  filter: drop-shadow(0 0 10px rgba(189, 231, 255, 0.95)) drop-shadow(0 0 18px rgba(129, 194, 255, 0.7));
+  fill: url(#hud-eyes);
+  filter: drop-shadow(0 0 10px rgba(189, 231, 255, 0.9)) drop-shadow(0 0 16px rgba(129, 194, 255, 0.54));
 }
 
-.helmet-bolt {
-  fill: #d9d9d9;
-  stroke: #6a6a6a;
-  stroke-width: 1.8;
+.helmet-amber-accent {
+  fill: none;
+  stroke: url(#hud-amber);
+  stroke-width: 3.2;
 }
 
 .helmet-face-shine {
-  fill: url(#helmet-shell-shine);
+  display: none;
 }
 
 .jarvis-mask.state-idle .helmet-eye-glow,
@@ -477,7 +474,8 @@ button {
 }
 
 .jarvis-mask.state-listening .helmet-eye-glow,
-.jarvis-mask.state-listening .helmet-face-shine {
+.jarvis-mask.state-listening .helmet-shell,
+.jarvis-mask.state-listening .helmet-aura {
   animation: eyePulse 1.2s ease-in-out infinite;
 }
 
@@ -487,8 +485,8 @@ button {
 }
 
 .jarvis-mask.state-speaking .helmet-eye-glow,
-.jarvis-mask.state-speaking .helmet-face-shine,
-.jarvis-mask.state-speaking .helmet-mouth-line {
+.jarvis-mask.state-speaking .helmet-mouth-line,
+.jarvis-mask.state-speaking .helmet-amber-accent {
   animation: speakingGlow 0.85s ease-in-out infinite;
 }
 
