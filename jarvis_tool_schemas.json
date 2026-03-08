@@ -1,0 +1,144 @@
+{
+  "tools": [
+    {
+      "name": "search_web",
+      "description": "Search the web for up-to-date information and return a concise spoken summary plus sources for overlay cards.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "general",
+              "fact_check",
+              "shopping",
+              "news",
+              "research"
+            ]
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "remember_fact",
+      "description": "Store a durable user preference or explicit personal fact locally.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "profile",
+              "preference",
+              "project",
+              "temporary"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ]
+      }
+    },
+    {
+      "name": "recall_fact",
+      "description": "Recall previously stored local memory facts relevant to the current request.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "open_url",
+      "description": "Open a URL in the system browser after confirmation when appropriate.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      }
+    },
+    {
+      "name": "analyze_screen_once",
+      "description": "Capture the current screen once, with user approval, and analyze it.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ]
+      }
+    },
+    {
+      "name": "list_audio_devices",
+      "description": "List available input and output audio devices.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "switch_microphone",
+      "description": "Switch to a selected microphone device.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id"
+        ]
+      }
+    },
+    {
+      "name": "switch_output_device",
+      "description": "Switch to a selected output device.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id"
+        ]
+      }
+    }
+  ]
+}
