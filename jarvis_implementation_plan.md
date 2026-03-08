@@ -253,10 +253,10 @@ Definition of done:
 Цель: добавить локальную память и долговечные настройки.
 
 Задачи:
-- `[not-done]` Подключить SQLite
-- `[not-done]` Создать таблицы `profile`, `preferences`, `memory_facts`, `session_summaries`, `tool_audit_log`, `device_history`
+- `[done]` Подключить SQLite
+- `[in-progress]` Создать таблицы `profile`, `preferences`, `memory_facts`, `session_summaries`, `tool_audit_log`, `device_history`
 - `[not-done]` Реализовать rolling summaries
-- `[in-progress]` Реализовать explicit facts store
+- `[done]` Реализовать explicit facts store
 - `[in-progress]` Добавить `forget me` control в settings
 
 Definition of done:
@@ -264,10 +264,11 @@ Definition of done:
 - Память хранит только разрешенные данные
 
 Текущее состояние phase:
-- `[in-progress]` Есть локальный JSON-backed store для `remember_fact / recall_fact`
+- `[done]` `remember_fact / recall_fact` уже работают через SQLite-backed store
+- `[done]` Есть миграция legacy JSON-файла памяти в SQLite
 - `[in-progress]` Realtime tools уже умеют сохранять и читать простые факты через native side
 - `[in-progress]` В settings уже можно увидеть локальные факты и очистить память через `forget me`
-- `[not-done]` SQLite и rolling summaries еще не добавлены
+- `[not-done]` Rolling summaries и остальные таблицы памяти еще не добавлены
 
 ### Phase 10 — Windows integration and resilience
 Цель: довести приложение до usable desktop product.

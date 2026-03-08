@@ -4,12 +4,14 @@ use tauri::{
     AppHandle, Manager, WebviewUrl, WebviewWindowBuilder,
 };
 use reqwest::blocking::multipart;
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
 use serde_json::json;
 
 const SETTINGS_FILE_NAME: &str = "jarvis-settings.json";
 const MEMORY_FILE_NAME: &str = "jarvis-memory-facts.json";
+const MEMORY_DB_FILE_NAME: &str = "jarvis-memory.sqlite3";
 const KEYRING_SERVICE: &str = "JarvisDesktop";
 const KEYRING_USERNAME: &str = "openai_api_key";
 const REALTIME_MODEL: &str = "gpt-realtime";
@@ -160,21 +162,101 @@ fn memory_file_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(config_dir)
 }
 
-fn load_memory_facts(app: &AppHandle) -> Result<Vec<MemoryFact>, String> {
-    let path = memory_file_path(app)?;
-
-    if !path.exists() {
-        return Ok(Vec::new());
-    }
-
-    let content = fs::read_to_string(path).map_err(|error| error.to_string())?;
-    serde_json::from_str::<Vec<MemoryFact>>(&content).map_err(|error| error.to_string())
+fn memory_db_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let mut config_dir = app.path().app_config_dir().map_err(|error| error.to_string())?;
+    fs::create_dir_all(&config_dir).map_err(|error| error.to_string())?;
+    config_dir.push(MEMORY_DB_FILE_NAME);
+    Ok(config_dir)
 }
 
-fn save_memory_facts(app: &AppHandle, facts: &[MemoryFact]) -> Result<(), String> {
-    let path = memory_file_path(app)?;
-    let content = serde_json::to_string_pretty(facts).map_err(|error| error.to_string())?;
-    fs::write(path, content).map_err(|error| error.to_string())
+fn migrate_legacy_memory_file(app: &AppHandle, connection: &Connection) -> Result<(), String> {
+    let legacy_path = memory_file_path(app)?;
+
+    if !legacy_path.exists() {
+        return Ok(());
+    }
+
+    let content = fs::read_to_string(&legacy_path).map_err(|error| error.to_string())?;
+    let facts = serde_json::from_str::<Vec<MemoryFact>>(&content).map_err(|error| error.to_string())?;
+
+    for fact in facts {
+        connection
+            .execute(
+                "INSERT INTO memory_facts (key, value, scope, updated_at) VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value, scope = excluded.scope, updated_at = excluded.updated_at",
+                params![fact.key, fact.value, fact.scope, fact.updated_at as i64],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+
+    fs::remove_file(legacy_path).map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn open_memory_db(app: &AppHandle) -> Result<Connection, String> {
+    let path = memory_db_path(app)?;
+    let connection = Connection::open(path).map_err(|error| error.to_string())?;
+
+    connection
+        .execute(
+            "CREATE TABLE IF NOT EXISTS memory_facts (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            )",
+            [],
+        )
+        .map_err(|error| error.to_string())?;
+
+    migrate_legacy_memory_file(app, &connection)?;
+
+    Ok(connection)
+}
+
+fn load_memory_facts(app: &AppHandle) -> Result<Vec<MemoryFact>, String> {
+    let connection = open_memory_db(app)?;
+    let mut statement = connection
+        .prepare("SELECT key, value, scope, updated_at FROM memory_facts ORDER BY updated_at DESC")
+        .map_err(|error| error.to_string())?;
+
+    let rows = statement
+        .query_map([], |row| {
+            Ok(MemoryFact {
+                key: row.get(0)?,
+                value: row.get(1)?,
+                scope: row.get(2)?,
+                updated_at: row.get::<_, i64>(3)? as u64,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+
+    let mut facts = Vec::new();
+    for row in rows {
+        facts.push(row.map_err(|error| error.to_string())?);
+    }
+
+    Ok(facts)
+}
+
+fn upsert_memory_fact(app: &AppHandle, fact: &MemoryFact) -> Result<(), String> {
+    let connection = open_memory_db(app)?;
+    connection
+        .execute(
+            "INSERT INTO memory_facts (key, value, scope, updated_at) VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, scope = excluded.scope, updated_at = excluded.updated_at",
+            params![fact.key, fact.value, fact.scope, fact.updated_at as i64],
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn clear_memory_store(app: &AppHandle) -> Result<(), String> {
+    let connection = open_memory_db(app)?;
+    connection
+        .execute("DELETE FROM memory_facts", [])
+        .map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 fn current_timestamp() -> u64 {
@@ -561,7 +643,6 @@ fn remember_fact(app: AppHandle, key: String, value: String, scope: Option<Strin
         return Err("Для памяти нужны и ключ, и значение.".to_string());
     }
 
-    let mut facts = load_memory_facts(&app)?;
     let fact = MemoryFact {
         key: normalized_key.clone(),
         value: normalized_value,
@@ -569,13 +650,7 @@ fn remember_fact(app: AppHandle, key: String, value: String, scope: Option<Strin
         updated_at: current_timestamp(),
     };
 
-    if let Some(existing) = facts.iter_mut().find(|item| item.key == normalized_key) {
-        *existing = fact.clone();
-    } else {
-        facts.push(fact.clone());
-    }
-
-    save_memory_facts(&app, &facts)?;
+    upsert_memory_fact(&app, &fact)?;
 
     Ok(RememberFactResult {
         ok: true,
@@ -626,7 +701,7 @@ fn list_memory_facts(app: AppHandle) -> Result<Vec<MemoryFact>, String> {
 
 #[tauri::command]
 fn clear_memory_facts(app: AppHandle) -> Result<ClearMemoryResult, String> {
-    save_memory_facts(&app, &[])?;
+    clear_memory_store(&app)?;
     Ok(ClearMemoryResult {
         ok: true,
         message: "Локальная память очищена.".to_string(),
