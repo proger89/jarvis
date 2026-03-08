@@ -776,6 +776,45 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     }
   }, [outputDeviceId]);
 
+  useEffect(() => {
+    if (!("mediaDevices" in navigator) || !navigator.mediaDevices?.enumerateDevices || !navigator.mediaDevices?.addEventListener) {
+      return;
+    }
+
+    async function handleDeviceChange() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const inputMissing = inputDeviceId !== "default" && !devices.some((device) => device.kind === "audioinput" && device.deviceId === inputDeviceId);
+      const outputMissing = outputDeviceId !== "default" && !devices.some((device) => device.kind === "audiooutput" && device.deviceId === outputDeviceId);
+
+      if (!inputMissing && !outputMissing) {
+        return;
+      }
+
+      const patch: Partial<AppSettings> = {};
+      if (inputMissing) {
+        patch.inputDeviceId = "default";
+      }
+      if (outputMissing) {
+        patch.outputDeviceId = "default";
+      }
+
+      await onSettingsPatch(patch);
+
+      if (inputMissing && (connectionState === "connected" || connectionState === "connecting")) {
+        setLastError("Выбранный микрофон отключен. Переключаюсь на устройство по умолчанию.");
+        stopSession();
+        return;
+      }
+
+      if (outputMissing) {
+        setToolSummary("Устройство вывода отключено. Переключаюсь на устройство по умолчанию.");
+      }
+    }
+
+    navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
+    return () => navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
+  }, [connectionState, inputDeviceId, onSettingsPatch, outputDeviceId, stopSession]);
+
   useEffect(() => stopSession, []);
 
   return {

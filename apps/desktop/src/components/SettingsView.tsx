@@ -147,7 +147,26 @@ export function SettingsView({
     }
 
     void loadDevices();
+
+    if (!("mediaDevices" in navigator) || !navigator.mediaDevices?.addEventListener) {
+      return;
+    }
+
+    navigator.mediaDevices.addEventListener("devicechange", loadDevices);
+    return () => navigator.mediaDevices.removeEventListener("devicechange", loadDevices);
   }, [text.settings.defaultDevice, text.settings.microphoneFallback, text.settings.speakerFallback]);
+
+  useEffect(() => {
+    if (inputDeviceId !== "default" && inputDevices.length > 0 && !inputDevices.some((device) => device.id === inputDeviceId)) {
+      setInputDeviceId("default");
+    }
+  }, [inputDeviceId, inputDevices]);
+
+  useEffect(() => {
+    if (outputDeviceId !== "default" && outputDevices.length > 0 && !outputDevices.some((device) => device.id === outputDeviceId)) {
+      setOutputDeviceId("default");
+    }
+  }, [outputDeviceId, outputDevices]);
 
   useEffect(() => {
     async function loadMemoryState() {
