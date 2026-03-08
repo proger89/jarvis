@@ -3,6 +3,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager, WebviewUrl, WebviewWindowBuilder,
 };
+use reqwest::blocking::multipart;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 use serde_json::json;
@@ -34,10 +35,10 @@ struct ApiKeyCheckResult {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct RealtimeClientSecret {
-    value: String,
+struct RealtimeSessionInitResult {
     model: String,
     voice: String,
+    answer_sdp: String,
 }
 
 impl Default for UiSettings {
@@ -239,7 +240,7 @@ fn save_api_key(api_key: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn create_realtime_client_secret() -> Result<RealtimeClientSecret, String> {
+fn create_realtime_session(offer_sdp: String) -> Result<RealtimeSessionInitResult, String> {
     let key = api_key_entry()?
         .get_password()
         .map_err(|_| "Ключ не найден. Сначала сохраните его в настройках.".to_string())?;
@@ -248,53 +249,70 @@ fn create_realtime_client_secret() -> Result<RealtimeClientSecret, String> {
         return Err("Ключ пустой. Сначала сохраните его в настройках.".to_string());
     }
 
+    if offer_sdp.trim().is_empty() {
+        return Err("Браузер не передал описание соединения для голосового канала.".to_string());
+    }
+
     let client = reqwest::blocking::Client::builder()
         .build()
         .map_err(|error| error.to_string())?;
 
-    let body = json!({
+    let session = json!({
         "session": {
             "type": "realtime",
             "model": REALTIME_MODEL,
             "instructions": REALTIME_INSTRUCTIONS,
             "audio": {
+                "input": {
+                    "turn_detection": {
+                        "type": "server_vad",
+                        "create_response": true,
+                        "interrupt_response": true,
+                        "prefix_padding_ms": 300,
+                        "silence_duration_ms": 550,
+                        "threshold": 0.55
+                    },
+                    "noise_reduction": {
+                        "type": "far_field"
+                    }
+                },
                 "output": {
-                    "voice": REALTIME_VOICE
+                    "voice": REALTIME_VOICE,
+                    "speed": 1.0
                 }
-            }
+            },
+            "tool_choice": "auto",
+            "max_output_tokens": 900
         }
     });
 
+    let form = multipart::Form::new()
+        .text("sdp", offer_sdp)
+        .text("session", session.to_string());
+
     let response = client
-        .post("https://api.openai.com/v1/realtime/client_secrets")
+        .post("https://api.openai.com/v1/realtime/calls")
         .bearer_auth(key.trim())
-        .json(&body)
+        .header("OpenAI-Beta", "realtime=v1")
+        .multipart(form)
         .send()
         .map_err(|error| error.to_string())?;
 
     let status = response.status();
-    let payload: serde_json::Value = response.json().map_err(|error| error.to_string())?;
+    let body_text = response.text().map_err(|error| error.to_string())?;
 
     if !status.is_success() {
-        let message = payload
-            .get("error")
-            .and_then(|error| error.get("message"))
-            .and_then(|message| message.as_str())
-            .unwrap_or("Не удалось начать голосовой сеанс.")
-            .to_string();
+        let message = serde_json::from_str::<serde_json::Value>(&body_text)
+            .ok()
+            .and_then(|payload| payload.get("error")?.get("message")?.as_str().map(str::to_string))
+            .unwrap_or_else(|| "Не удалось начать голосовой сеанс.".to_string());
         return Err(message);
     }
 
-    let value = payload
-        .get("value")
-        .and_then(|value| value.as_str())
-        .ok_or_else(|| "Сервис не вернул временный ключ для разговора.".to_string())?
-        .to_string();
-
-    Ok(RealtimeClientSecret {
-        value,
+    Ok(RealtimeSessionInitResult {
         model: REALTIME_MODEL.to_string(),
         voice: REALTIME_VOICE.to_string(),
+        answer_sdp: body_text,
     })
 }
 
@@ -354,7 +372,7 @@ pub fn run() {
             api_key_status,
             save_api_key,
             verify_api_key,
-            create_realtime_client_secret
+            create_realtime_session
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

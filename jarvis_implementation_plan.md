@@ -171,7 +171,7 @@ Definition of done:
 
 Задачи:
 - `[done]` Реализовать `RTCPeerConnection` на frontend
-- `[in-progress]` Реализовать Rust command для session init через `/v1/realtime/calls`
+- `[done]` Реализовать Rust command для session init через `/v1/realtime/calls`
 - `[done]` Подать persona prompt в session instructions
 - `[done]` Настроить базовый session config для `gpt-realtime`
 - `[in-progress]` Обработать transcript/datachannel events
@@ -185,9 +185,10 @@ Definition of done:
 
 Текущее состояние phase:
 - `[in-progress]` Frontend уже поднимает WebRTC peer connection и remote audio playback
-- `[in-progress]` Native side уже выдает временный ключ для Realtime session
+- `[done]` Native side уже формирует session init через `/v1/realtime/calls` и возвращает SDP answer
 - `[done]` Persona prompt уже подается в instructions при создании Realtime session
 - `[done]` Базовая session config для `gpt-realtime` и голоса уже подается с native side
+- `[done]` Renderer больше не получает временный ключ для Realtime
 - `[in-progress]` Overlay уже реагирует на живое соединение и на уровень звука ответа
 - `[in-progress]` Overlay уже показывает простые субтитры, ошибки и состояние выполнения действия
 - `[in-progress]` Отмена ответа при новом голосе уже заложена в клиентском коде

@@ -3,10 +3,10 @@ import { invoke } from "@tauri-apps/api/core";
 
 type RealtimeConnectionState = "disconnected" | "connecting" | "connected" | "error";
 
-type RealtimeClientSecret = {
-  value: string;
+type RealtimeSessionInitResult = {
   model: string;
   voice: string;
+  answerSdp: string;
 };
 
 type UseRealtimeSessionOptions = {
@@ -239,7 +239,6 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
     setLastEventType("");
 
     try {
-      const secret = await invoke<RealtimeClientSecret>("create_realtime_client_secret");
       const peerConnection = new RTCPeerConnection();
 
       peerConnection.ontrack = (event) => {
@@ -263,6 +262,13 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
 
       const dataChannel = peerConnection.createDataChannel("oai-events");
       dataChannelRef.current = dataChannel;
+
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+
+      const session = await invoke<RealtimeSessionInitResult>("create_realtime_session", {
+        offerSdp: offer.sdp ?? "",
+      });
 
       dataChannel.addEventListener("open", () => {
         reconnectAttemptRef.current = 0;
@@ -364,24 +370,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
         }
       });
 
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-
-      const response = await fetch(`https://api.openai.com/v1/realtime/calls?model=${secret.model}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${secret.value}`,
-          "Content-Type": "application/sdp",
-        },
-        body: offer.sdp,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Не удалось начать разговор. Код ответа: ${response.status}.`);
-      }
-
-      const answerSdp = await response.text();
-      await peerConnection.setRemoteDescription({ type: "answer", sdp: answerSdp });
+      await peerConnection.setRemoteDescription({ type: "answer", sdp: session.answerSdp });
 
       peerConnectionRef.current = peerConnection;
     } catch (error) {
