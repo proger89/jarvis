@@ -13,9 +13,10 @@ import type { OverlayState } from "../types/overlay";
 type OverlayViewProps = {
   settings: AppSettings;
   apiKeyPresent: boolean;
+  onSettingsPatch: (patch: Partial<AppSettings>) => Promise<void>;
 };
 
-export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
+export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: OverlayViewProps) {
   const text = getCopy(settings.language);
   const overlayWindow = getCurrentWindow();
   const { level, permission, samples, start, stop } = useAudioWaveform(settings.inputDeviceId);
@@ -33,6 +34,7 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
   } = useRealtimeSession({
     inputDeviceId: settings.inputDeviceId,
     outputDeviceId: settings.outputDeviceId,
+    onSettingsPatch,
   });
   const [overlayState, setOverlayState] = useState<OverlayState>("idle");
   const [showDebugControls, setShowDebugControls] = useState(false);

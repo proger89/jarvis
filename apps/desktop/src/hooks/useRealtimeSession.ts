@@ -1,5 +1,65 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import type { AppSettings } from "../types/settings";
+
+const realtimeTools = [
+  {
+    type: "function",
+    name: "list_audio_devices",
+    description: "List available input and output audio devices.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    type: "function",
+    name: "switch_microphone",
+    description: "Switch to a selected microphone device.",
+    parameters: {
+      type: "object",
+      properties: {
+        device_id: {
+          type: "string",
+        },
+      },
+      required: ["device_id"],
+    },
+  },
+  {
+    type: "function",
+    name: "switch_output_device",
+    description: "Switch to a selected output device.",
+    parameters: {
+      type: "object",
+      properties: {
+        device_id: {
+          type: "string",
+        },
+      },
+      required: ["device_id"],
+    },
+  },
+  {
+    type: "function",
+    name: "open_url",
+    description: "Open a URL in the system browser after confirmation when appropriate.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: {
+          type: "string",
+        },
+        title: {
+          type: "string",
+        },
+      },
+      required: ["url"],
+    },
+  },
+] as const;
 
 type RealtimeConnectionState = "disconnected" | "connecting" | "connected" | "error";
 
@@ -12,6 +72,7 @@ type RealtimeSessionInitResult = {
 type UseRealtimeSessionOptions = {
   inputDeviceId: string;
   outputDeviceId: string;
+  onSettingsPatch: (patch: Partial<AppSettings>) => Promise<void>;
 };
 
 type UseRealtimeSessionResult = {
@@ -27,7 +88,7 @@ type UseRealtimeSessionResult = {
   stopSession: () => void;
 };
 
-export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtimeSessionOptions): UseRealtimeSessionResult {
+export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPatch }: UseRealtimeSessionOptions): UseRealtimeSessionResult {
   const [connectionState, setConnectionState] = useState<RealtimeConnectionState>("disconnected");
   const [remoteAudioLevel, setRemoteAudioLevel] = useState(0);
   const [lastError, setLastError] = useState("");
@@ -137,6 +198,116 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
       }
 
       respondedItemIdsRef.current.add(itemId);
+    }
+
+    sendClientEvent({
+      type: "response.create",
+      response: {
+        modalities: ["audio", "text"],
+      },
+    });
+  }
+
+  async function listAudioDevicesTool() {
+    if (!("mediaDevices" in navigator) || !navigator.mediaDevices?.enumerateDevices) {
+      return {
+        ok: false,
+        message: "Не удалось получить список аудиоустройств.",
+      };
+    }
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return {
+      ok: true,
+      inputDeviceId,
+      outputDeviceId,
+      microphones: devices
+        .filter((device) => device.kind === "audioinput")
+        .map((device) => ({ id: device.deviceId, label: device.label || "Микрофон" })),
+      speakers: devices
+        .filter((device) => device.kind === "audiooutput")
+        .map((device) => ({ id: device.deviceId, label: device.label || "Динамик" })),
+    };
+  }
+
+  async function switchDeviceTool(kind: "input" | "output", deviceId: string) {
+    if (!deviceId?.trim()) {
+      return {
+        ok: false,
+        message: "Не передан идентификатор устройства.",
+      };
+    }
+
+    await onSettingsPatch(kind === "input" ? { inputDeviceId: deviceId } : { outputDeviceId: deviceId });
+
+    return {
+      ok: true,
+      message: kind === "input" ? "Микрофон переключен." : "Устройство вывода переключено.",
+      deviceId,
+    };
+  }
+
+  async function openUrlTool(url: string, title?: string) {
+    if (!url?.trim()) {
+      return {
+        ok: false,
+        message: "Ссылка не передана.",
+      };
+    }
+
+    await openUrl(url);
+
+    return {
+      ok: true,
+      message: title ? `Открываю: ${title}` : "Открываю ссылку.",
+      url,
+    };
+  }
+
+  async function executeToolCall(name: string, rawArguments: string) {
+    const args = rawArguments.trim() ? JSON.parse(rawArguments) as Record<string, unknown> : {};
+
+    switch (name) {
+      case "list_audio_devices":
+        return await listAudioDevicesTool();
+      case "switch_microphone":
+        return await switchDeviceTool("input", String(args.device_id ?? ""));
+      case "switch_output_device":
+        return await switchDeviceTool("output", String(args.device_id ?? ""));
+      case "open_url":
+        return await openUrlTool(String(args.url ?? ""), typeof args.title === "string" ? args.title : undefined);
+      default:
+        return {
+          ok: false,
+          message: `Инструмент ${name} пока не подключен.`,
+        };
+    }
+  }
+
+  async function sendToolOutput(callId: string, name: string, rawArguments: string) {
+    try {
+      const result = await executeToolCall(name, rawArguments);
+
+      sendClientEvent({
+        type: "conversation.item.create",
+        item: {
+          type: "function_call_output",
+          call_id: callId,
+          output: JSON.stringify(result),
+          status: "completed",
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Не удалось выполнить действие.";
+      sendClientEvent({
+        type: "conversation.item.create",
+        item: {
+          type: "function_call_output",
+          call_id: callId,
+          output: JSON.stringify({ ok: false, message }),
+          status: "completed",
+        },
+      });
     }
 
     sendClientEvent({
@@ -279,6 +450,8 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
           type: "session.update",
           session: {
             type: "realtime",
+            tools: realtimeTools,
+            tool_choice: "auto",
             input_audio_transcription: {
               model: "gpt-4o-mini-transcribe",
             },
@@ -296,6 +469,9 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
             delta?: string;
             transcript?: string;
             item_id?: string;
+            call_id?: string;
+            name?: string;
+            arguments?: string;
             error?: { message?: string };
             item?: { type?: string; name?: string };
             response?: { output?: Array<{ type?: string; name?: string }> };
@@ -334,6 +510,12 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
             case "response.output_item.added":
               if (payload.item?.type === "function_call") {
                 setActiveToolName(payload.item.name ?? "действие");
+              }
+              break;
+            case "response.function_call_arguments.done":
+              if (payload.call_id && payload.name) {
+                setActiveToolName(payload.name);
+                void sendToolOutput(payload.call_id, payload.name, payload.arguments ?? "{}");
               }
               break;
             case "response.done":

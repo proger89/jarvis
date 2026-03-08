@@ -64,6 +64,17 @@ function App() {
     setStatusMessage(savedSettings.language === "ru" ? "Настройки сохранены." : "Settings saved.");
   }
 
+  async function handleOverlaySettingsPatch(patch: Partial<AppSettings>) {
+    const savedSettings = await invoke<AppSettings>("save_settings", {
+      settings: {
+        ...settings,
+        ...patch,
+      },
+    });
+
+    setSettings(savedSettings);
+  }
+
   if (!isReady) {
     return <main className="loading-screen">Джарвис запускается...</main>;
   }
@@ -79,7 +90,13 @@ function App() {
     );
   }
 
-  return <OverlayView apiKeyPresent={apiKeyPresent} settings={settings} />;
+  return (
+    <OverlayView
+      apiKeyPresent={apiKeyPresent}
+      onSettingsPatch={handleOverlaySettingsPatch}
+      settings={settings}
+    />
+  );
 }
 
 export default App;

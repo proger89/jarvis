@@ -143,7 +143,7 @@ Definition of done:
 - `[done]` Есть полноэкранный speaking overlay с центральной mask-композицией
 - `[done]` Реальные runtime-состояния `idle / listening / thinking / speaking` уже подключены в overlay
 - `[done]` Idle behavior переведен в компактный click-through режим
-- `[not-done]` `wake / tool / error` состояния еще не разведены
+- `[in-progress]` `tool / error` состояния уже разведены, `wake` еще не добавлен отдельно
 
 ### Phase 4 — audio pipeline
 Цель: подготовить input/output audio infrastructure.
@@ -232,13 +232,19 @@ Definition of done:
 - `[not-done]` Реализовать Rust tool broker с allowlist
 - `[not-done]` Реализовать `search_web` через Responses API
 - `[not-done]` Отдавать spoken summary + source cards
-- `[not-done]` Реализовать `open_url`
+- `[in-progress]` Реализовать `open_url`
 - `[not-done]` Реализовать `remember_fact` / `recall_fact`
 - `[not-done]` Подготовить `analyze_screen_once` с confirm flow
 
 Definition of done:
 - Web search отрабатывает как tool, а не как фейковый диалог
 - Пользователь видит 3–5 источников и может открыть их в браузере
+
+Текущее состояние phase:
+- `[in-progress]` Realtime session уже умеет принимать tool calls и возвращать `function_call_output`
+- `[done]` Подключены первые реальные tools: `list_audio_devices`, `switch_microphone`, `switch_output_device`
+- `[in-progress]` `open_url` уже подключен на клиентской стороне через системное открытие ссылки
+- `[not-done]` Полноценный Rust tool broker и web search еще не добавлены
 
 ### Phase 9 — local memory and persistence
 Цель: добавить локальную память и долговечные настройки.
