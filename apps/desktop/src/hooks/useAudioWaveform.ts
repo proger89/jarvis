@@ -17,7 +17,7 @@ function createEmptySamples() {
   return Array.from({ length: SAMPLE_COUNT }, () => 0);
 }
 
-export function useAudioWaveform(): AudioWaveformState {
+export function useAudioWaveform(inputDeviceId?: string): AudioWaveformState {
   const [permission, setPermission] = useState<AudioPermissionState>("pending");
   const [level, setLevel] = useState(0);
   const [samples, setSamples] = useState<number[]>(() => createEmptySamples());
@@ -59,6 +59,9 @@ export function useAudioWaveform(): AudioWaveformState {
           autoGainControl: true,
           echoCancellation: true,
           noiseSuppression: true,
+          ...(inputDeviceId && inputDeviceId !== "default"
+            ? { deviceId: { exact: inputDeviceId } }
+            : {}),
         },
       });
 
@@ -131,7 +134,7 @@ export function useAudioWaveform(): AudioWaveformState {
     return () => {
       cleanupAudio();
     };
-  }, []);
+  }, [inputDeviceId]);
 
   return {
     permission,

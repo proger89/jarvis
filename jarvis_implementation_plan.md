@@ -105,7 +105,7 @@ Definition of done:
 - `[done]` Добавить settings screen для API key, языка, wake word и обращения к пользователю
 - `[done]` Добавить локальное хранение preferences/profile
 - `[done]` Реализовать i18n для RU/EN
-- `[not-done]` Добавить валидацию key format и кнопку verify
+- `[done]` Добавить валидацию key format и кнопку verify
 
 Definition of done:
 - Пользователь может сохранить ключ безопасно
@@ -113,12 +113,12 @@ Definition of done:
 - Wake word и user title редактируются в настройках
 
 Текущее состояние phase:
-- `[in-progress]` Phase 2 начат и частично выполнен
+- `[done]` Phase 2 завершен
 - `[done]` Настройки сохраняются между запусками
 - `[done]` Ключ сохраняется вне renderer
 - `[done]` RU/EN интерфейс работает на текущем foundation UI
-- `[not-done]` Проверка валидности ключа через UI/API еще не добавлена
-- `[not-done]` Device settings и audio preferences еще не подключены
+- `[done]` Проверка валидности ключа через UI/API добавлена
+- `[done]` Базовые настройки устройств уже подключены
 
 ### Phase 3 — windowing and overlay shell
 Цель: получить визуальный shell приложения.
@@ -149,7 +149,7 @@ Definition of done:
 Цель: подготовить input/output audio infrastructure.
 
 Задачи:
-- `[not-done]` Реализовать выбор input/output devices
+- `[done]` Реализовать выбор input/output devices
 - `[done]` Подключить `getUserMedia` и input meter
 - `[not-done]` Подключить playback path для remote audio
 - `[done]` Добавить Web Audio analyser
@@ -164,7 +164,7 @@ Definition of done:
 - `[in-progress]` Реальная waveform уже работает от input audio через Web Audio analyser
 - `[done]` HUD больше не использует полностью декоративные волны
 - `[not-done]` Output audio binding от Realtime remote stream еще не подключен
-- `[not-done]` Device picker и output switching еще не подключены
+- `[in-progress]` Device picker уже подключен, но output switching еще не привязан к живому воспроизведению
 
 ### Phase 5 — realtime voice session
 Цель: получить рабочий speech-to-speech диалог.

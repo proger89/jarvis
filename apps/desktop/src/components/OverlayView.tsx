@@ -17,7 +17,7 @@ type OverlayViewProps = {
 export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
   const text = getCopy(settings.language);
   const overlayWindow = getCurrentWindow();
-  const { level, permission, samples, start, stop } = useAudioWaveform();
+  const { level, permission, samples, start, stop } = useAudioWaveform(settings.inputDeviceId);
   const [overlayState, setOverlayState] = useState<OverlayState>("idle");
   const [showDebugControls, setShowDebugControls] = useState(false);
   const stateChangedAtRef = useRef(Date.now());

@@ -7,6 +7,8 @@ export type AppSettings = {
   wakeWord: string;
   addressTitle: string;
   overlayMode: OverlayMode;
+  inputDeviceId: string;
+  outputDeviceId: string;
 };
 
 export const defaultSettings: AppSettings = {
@@ -14,4 +16,6 @@ export const defaultSettings: AppSettings = {
   wakeWord: "Джарвис",
   addressTitle: "Мистер Старк",
   overlayMode: "quiet",
+  inputDeviceId: "default",
+  outputDeviceId: "default",
 };

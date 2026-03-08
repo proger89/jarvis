@@ -17,6 +17,15 @@ struct UiSettings {
     wake_word: String,
     address_title: String,
     overlay_mode: String,
+    input_device_id: String,
+    output_device_id: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ApiKeyCheckResult {
+    ok: bool,
+    message: String,
 }
 
 impl Default for UiSettings {
@@ -26,6 +35,8 @@ impl Default for UiSettings {
             wake_word: "Джарвис".to_string(),
             address_title: "Мистер Старк".to_string(),
             overlay_mode: "quiet".to_string(),
+            input_device_id: "default".to_string(),
+            output_device_id: "default".to_string(),
         }
     }
 }
@@ -53,11 +64,25 @@ fn sanitize_settings(settings: UiSettings) -> UiSettings {
         _ => "quiet".to_string(),
     };
 
+    let input_device_id = if settings.input_device_id.trim().is_empty() {
+        "default".to_string()
+    } else {
+        settings.input_device_id.trim().to_string()
+    };
+
+    let output_device_id = if settings.output_device_id.trim().is_empty() {
+        "default".to_string()
+    } else {
+        settings.output_device_id.trim().to_string()
+    };
+
     UiSettings {
         language,
         wake_word,
         address_title,
         overlay_mode,
+        input_device_id,
+        output_device_id,
     }
 }
 
@@ -201,6 +226,46 @@ fn save_api_key(api_key: String) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+fn verify_api_key() -> Result<ApiKeyCheckResult, String> {
+    let key = api_key_entry()?
+        .get_password()
+        .map_err(|_| "Ключ не найден. Сначала сохраните его в настройках.".to_string())?;
+
+    if key.trim().is_empty() {
+        return Ok(ApiKeyCheckResult {
+            ok: false,
+            message: "Ключ пустой. Вставьте его и сохраните.".to_string(),
+        });
+    }
+
+    let client = reqwest::blocking::Client::builder()
+        .build()
+        .map_err(|error| error.to_string())?;
+
+    let response = client
+        .get("https://api.openai.com/v1/models")
+        .bearer_auth(key.trim())
+        .send()
+        .map_err(|error| error.to_string())?;
+
+    if response.status().is_success() {
+        return Ok(ApiKeyCheckResult {
+            ok: true,
+            message: "Ключ подходит. Можно продолжать.".to_string(),
+        });
+    }
+
+    let status = response.status();
+    let message = match status.as_u16() {
+        401 => "Ключ не подошел. Проверьте его еще раз.".to_string(),
+        429 => "Слишком много запросов. Попробуйте чуть позже.".to_string(),
+        _ => format!("Не удалось проверить ключ. Код ответа: {}.", status.as_u16()),
+    };
+
+    Ok(ApiKeyCheckResult { ok: false, message })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -215,7 +280,8 @@ pub fn run() {
             load_settings,
             save_settings,
             api_key_status,
-            save_api_key
+            save_api_key,
+            verify_api_key
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

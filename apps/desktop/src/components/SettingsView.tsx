@@ -1,7 +1,18 @@
 import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCopy } from "../lib/copy";
 import type { AppLanguage, AppSettings, OverlayMode } from "../types/settings";
+
+type DeviceOption = {
+  id: string;
+  label: string;
+};
+
+type ApiKeyCheckResult = {
+  ok: boolean;
+  message: string;
+};
 
 type SettingsViewProps = {
   settings: AppSettings;
@@ -20,8 +31,13 @@ export function SettingsView({
   const [wakeWord, setWakeWord] = useState(settings.wakeWord);
   const [addressTitle, setAddressTitle] = useState(settings.addressTitle);
   const [overlayMode, setOverlayMode] = useState(settings.overlayMode);
+  const [inputDeviceId, setInputDeviceId] = useState(settings.inputDeviceId);
+  const [outputDeviceId, setOutputDeviceId] = useState(settings.outputDeviceId);
   const [apiKeyDraft, setApiKeyDraft] = useState("");
   const [saveState, setSaveState] = useState("");
+  const [keyCheckMessage, setKeyCheckMessage] = useState("");
+  const [inputDevices, setInputDevices] = useState<DeviceOption[]>([]);
+  const [outputDevices, setOutputDevices] = useState<DeviceOption[]>([]);
   const text = getCopy(language);
   const phaseOneChecklist = [
     {
@@ -56,7 +72,42 @@ export function SettingsView({
     setWakeWord(settings.wakeWord);
     setAddressTitle(settings.addressTitle);
     setOverlayMode(settings.overlayMode);
+    setInputDeviceId(settings.inputDeviceId);
+    setOutputDeviceId(settings.outputDeviceId);
   }, [settings]);
+
+  useEffect(() => {
+    async function loadDevices() {
+      if (!("mediaDevices" in navigator) || !navigator.mediaDevices?.enumerateDevices) {
+        return;
+      }
+
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const microphones = devices
+          .filter((device) => device.kind === "audioinput")
+          .map((device, index) => ({
+            id: device.deviceId || `input-${index}`,
+            label: device.label || `${text.settings.microphoneFallback} ${index + 1}`,
+          }));
+
+        const speakers = devices
+          .filter((device) => device.kind === "audiooutput")
+          .map((device, index) => ({
+            id: device.deviceId || `output-${index}`,
+            label: device.label || `${text.settings.speakerFallback} ${index + 1}`,
+          }));
+
+        setInputDevices([{ id: "default", label: text.settings.defaultDevice }, ...microphones]);
+        setOutputDevices([{ id: "default", label: text.settings.defaultDevice }, ...speakers]);
+      } catch {
+        setInputDevices([{ id: "default", label: text.settings.defaultDevice }]);
+        setOutputDevices([{ id: "default", label: text.settings.defaultDevice }]);
+      }
+    }
+
+    void loadDevices();
+  }, [text.settings.defaultDevice, text.settings.microphoneFallback, text.settings.speakerFallback]);
 
   async function closeWindow() {
     await getCurrentWindow().hide();
@@ -71,6 +122,8 @@ export function SettingsView({
           wakeWord,
           addressTitle,
           overlayMode,
+          inputDeviceId,
+          outputDeviceId,
         },
         apiKeyDraft,
       );
@@ -78,6 +131,32 @@ export function SettingsView({
       setSaveState(language === "ru" ? "Изменения сохранены." : "Changes saved.");
     } catch {
       setSaveState(language === "ru" ? "Не удалось сохранить настройки." : "Failed to save settings.");
+    }
+  }
+
+  async function handleVerifyKey() {
+    setKeyCheckMessage("");
+
+    try {
+      if (apiKeyDraft.trim()) {
+        await onSave(
+          {
+            language,
+            wakeWord,
+            addressTitle,
+            overlayMode,
+            inputDeviceId,
+            outputDeviceId,
+          },
+          apiKeyDraft,
+        );
+        setApiKeyDraft("");
+      }
+
+      const result = await invoke<ApiKeyCheckResult>("verify_api_key");
+      setKeyCheckMessage(result.message);
+    } catch {
+      setKeyCheckMessage(text.settings.keyCheckFailed);
     }
   }
 
@@ -154,17 +233,51 @@ export function SettingsView({
                   value={apiKeyDraft}
                 />
               </div>
+
+              <div className="field">
+                <label htmlFor="input-device">{text.settings.inputDeviceLabel}</label>
+                <select
+                  id="input-device"
+                  value={inputDeviceId}
+                  onChange={(event) => setInputDeviceId(event.currentTarget.value)}
+                >
+                  {inputDevices.map((device) => (
+                    <option key={device.id} value={device.id}>
+                      {device.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="field">
+                <label htmlFor="output-device">{text.settings.outputDeviceLabel}</label>
+                <select
+                  id="output-device"
+                  value={outputDeviceId}
+                  onChange={(event) => setOutputDeviceId(event.currentTarget.value)}
+                >
+                  {outputDevices.map((device) => (
+                    <option key={device.id} value={device.id}>
+                      {device.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <p className="inline-note">{text.settings.inlineNote}</p>
             <p className="inline-note">
               {apiKeyPresent ? text.settings.apiKeyStored : text.settings.apiKeyMissing}
             </p>
+            {keyCheckMessage && <p className="inline-note">{keyCheckMessage}</p>}
             {(saveState || statusMessage) && <p className="inline-note">{saveState || statusMessage}</p>}
 
             <div className="settings-actions">
               <button className="primary-button" onClick={handleSave} type="button">
                 {text.settings.saveButton}
+              </button>
+              <button className="secondary-button" onClick={handleVerifyKey} type="button">
+                {text.settings.checkKeyButton}
               </button>
               <button className="secondary-button" onClick={closeWindow} type="button">
                 {text.settings.closeButton}
