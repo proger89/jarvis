@@ -56,6 +56,18 @@ type SettingsViewProps = {
   onSave: (settings: AppSettings, apiKeyDraft: string) => Promise<void>;
 };
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 export function SettingsView({
   settings,
   apiKeyPresent,
@@ -232,8 +244,8 @@ export function SettingsView({
         apiKeyDraft,
       );
       setSaveState(language === "ru" ? "Изменения сохранены." : "Changes saved.");
-    } catch {
-      setSaveState(language === "ru" ? "Не удалось сохранить настройки." : "Failed to save settings.");
+    } catch (error) {
+      setSaveState(getErrorMessage(error, language === "ru" ? "Не удалось сохранить настройки." : "Failed to save settings."));
     }
   }
 
@@ -257,8 +269,8 @@ export function SettingsView({
 
       const result = await invoke<ApiKeyCheckResult>("verify_api_key");
       setKeyCheckMessage(result.message);
-    } catch {
-      setKeyCheckMessage(text.settings.keyCheckFailed);
+    } catch (error) {
+      setKeyCheckMessage(getErrorMessage(error, text.settings.keyCheckFailed));
     }
   }
 

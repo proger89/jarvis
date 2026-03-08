@@ -583,6 +583,61 @@ fn api_key_entry() -> Result<keyring::Entry, String> {
     keyring::Entry::new(KEYRING_SERVICE, KEYRING_USERNAME).map_err(|error| error.to_string())
 }
 
+fn read_api_key_from_dotenv() -> Option<String> {
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
+    if let Ok(current_dir) = env::current_dir() {
+        let mut dir = Some(current_dir.as_path());
+        for _ in 0..5 {
+            if let Some(path) = dir {
+                candidates.push(path.join(".env"));
+                dir = path.parent();
+            } else {
+                break;
+            }
+        }
+    }
+
+    for path in candidates {
+        let Ok(content) = fs::read_to_string(&path) else {
+            continue;
+        };
+
+        for line in content.lines() {
+            if let Some(value) = line.strip_prefix("OPENAI_API_KEY=") {
+                let trimmed = value.trim().trim_matches('"').trim_matches('\'');
+                if !trimmed.is_empty() {
+                    return Some(trimmed.to_string());
+                }
+            }
+        }
+    }
+
+    None
+}
+
+fn hydrate_api_key_from_fallbacks() -> Result<(), String> {
+    let entry = api_key_entry()?;
+
+    if let Ok(value) = entry.get_password() {
+        if !value.trim().is_empty() {
+            return Ok(());
+        }
+    }
+
+    let fallback = env::var("OPENAI_API_KEY")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .or_else(read_api_key_from_dotenv);
+
+    if let Some(value) = fallback {
+        entry.set_password(&value).map_err(|error| error.to_string())?;
+    }
+
+    Ok(())
+}
+
 fn load_api_key() -> Result<String, String> {
     let entry = api_key_entry()?;
 
@@ -598,6 +653,10 @@ fn load_api_key() -> Result<String, String> {
         if !trimmed.is_empty() {
             return Ok(trimmed.to_string());
         }
+    }
+
+    if let Some(value) = read_api_key_from_dotenv() {
+        return Ok(value);
     }
 
     Err("Ключ не найден. Сохраните его в настройках или передайте через OPENAI_API_KEY.".to_string())
@@ -1076,6 +1135,7 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            hydrate_api_key_from_fallbacks()?;
             app.handle().plugin(
                 tauri_plugin_global_shortcut::Builder::new()
                     .with_shortcuts([GLOBAL_ACTIVATION_SHORTCUT])?
