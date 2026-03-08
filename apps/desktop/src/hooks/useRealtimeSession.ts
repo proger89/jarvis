@@ -43,6 +43,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
   const analyserContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const analyserFrameRef = useRef<number | null>(null);
+  const respondedItemIdsRef = useRef<Set<string>>(new Set());
 
   function cleanupRemoteAnalyser() {
     if (analyserFrameRef.current !== null) {
@@ -86,6 +87,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
     setUserSubtitle("");
     setAssistantSubtitle("");
     setActiveToolName("");
+    respondedItemIdsRef.current.clear();
   }
 
   function sendClientEvent(message: Record<string, unknown>) {
@@ -103,6 +105,23 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
     setAssistantSubtitle("");
     setActiveToolName("");
     setLastEventType("response.cancelled");
+  }
+
+  function requestAssistantResponse(itemId?: string) {
+    if (itemId) {
+      if (respondedItemIdsRef.current.has(itemId)) {
+        return;
+      }
+
+      respondedItemIdsRef.current.add(itemId);
+    }
+
+    sendClientEvent({
+      type: "response.create",
+      response: {
+        modalities: ["audio", "text"],
+      },
+    });
   }
 
   function appendTranscript(current: string, chunk: string) {
@@ -222,6 +241,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
             type?: string;
             delta?: string;
             transcript?: string;
+            item_id?: string;
             error?: { message?: string };
             item?: { type?: string; name?: string };
             response?: { output?: Array<{ type?: string; name?: string }> };
@@ -245,10 +265,17 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId }: UseRealtim
                 setAssistantSubtitle(payload.transcript.trim());
               }
               break;
+            case "input_audio_buffer.speech_started":
+              interruptResponse();
+              break;
+            case "input_audio_buffer.speech_stopped":
+              requestAssistantResponse(payload.item_id);
+              break;
             case "conversation.item.input_audio_transcription.completed":
               if (payload.transcript) {
                 setUserSubtitle(payload.transcript.trim());
               }
+              requestAssistantResponse(payload.item_id);
               break;
             case "response.output_item.added":
               if (payload.item?.type === "function_call") {
