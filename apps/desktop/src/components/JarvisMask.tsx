@@ -6,7 +6,7 @@ type JarvisMaskProps = {
 };
 
 export function JarvisMask({ audioLevel, state }: JarvisMaskProps) {
-  const eyeScale = 1 + audioLevel * 0.12;
+  const eyeScale = 1 + audioLevel * 0.08;
   const shellClassName = `jarvis-mask state-${state}`;
 
   return (
@@ -20,10 +20,9 @@ export function JarvisMask({ audioLevel, state }: JarvisMaskProps) {
     >
       <defs>
         <linearGradient id="helmet-shell-red" x1="190" y1="20" x2="190" y2="520" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#ff8b90" />
-          <stop offset="0.14" stopColor="#d83f45" />
-          <stop offset="0.5" stopColor="#8c101e" />
-          <stop offset="1" stopColor="#4f060f" />
+          <stop offset="0" stopColor="#a61d2d" />
+          <stop offset="0.4" stopColor="#6e0f1a" />
+          <stop offset="1" stopColor="#2b0810" />
         </linearGradient>
         <linearGradient id="helmet-gold" x1="190" y1="70" x2="190" y2="492" gradientUnits="userSpaceOnUse">
           <stop offset="0" stopColor="#fff0aa" />
@@ -46,9 +45,9 @@ export function JarvisMask({ audioLevel, state }: JarvisMaskProps) {
           <stop offset="0.4" stopColor="#ccf0ff" stopOpacity="0.9" />
           <stop offset="1" stopColor="#73bdff" stopOpacity="0" />
         </radialGradient>
-        <radialGradient id="helmet-shell-shine" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(175 92) rotate(90) scale(150 130)">
-          <stop offset="0" stopColor="#fff4cf" stopOpacity="0.86" />
-          <stop offset="1" stopColor="#fff4cf" stopOpacity="0" />
+        <radialGradient id="helmet-shell-shine" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(180 160) rotate(90) scale(170 120)">
+          <stop offset="0" stopColor="#8ce8ff" stopOpacity="0.3" />
+          <stop offset="1" stopColor="#8ce8ff" stopOpacity="0" />
         </radialGradient>
       </defs>
 
@@ -81,8 +80,7 @@ export function JarvisMask({ audioLevel, state }: JarvisMaskProps) {
       />
       <path d="M170 242L190 232L210 242L216 333L190 394L164 333L170 242Z" className="helmet-nose-plate" />
       <path d="M132 414L157 367L190 400L223 367L248 414L222 434L190 456L158 434L132 414Z" className="helmet-mouth-guard" />
-      <path d="M152 432H228" className="helmet-mouth-line" />
-      <path d="M165 446H215" className="helmet-mouth-line" />
+      <path d="M158 430H222" className="helmet-mouth-line" />
       <path d="M120 154L146 140L136 198L108 210L120 154Z" className="helmet-cheek-shine" />
       <path d="M260 154L234 140L244 198L272 210L260 154Z" className="helmet-cheek-shine" />
       <path d="M114 326L142 308L134 354L102 378L114 326Z" className="helmet-gold-edge" />

@@ -23,12 +23,8 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
   const {
     connectionState,
     remoteAudioLevel,
-    lastError,
     lastEventType,
-    userSubtitle,
-    assistantSubtitle,
     activeToolName,
-    toolSummary,
     pendingOpenRequest,
     startSession,
     interruptResponse,
@@ -89,8 +85,8 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
       const monitor = await currentMonitor();
       const scaleFactor = await overlayWindow.scaleFactor();
 
-      const width = overlayState === "idle" ? 640 : 1040;
-      const height = overlayState === "idle" ? 280 : 500;
+      const width = overlayState === "idle" ? 620 : 860;
+      const height = overlayState === "idle" ? 250 : 340;
       const showAboveWindows = settings.overlayMode === "focus";
 
       await overlayWindow.setIgnoreCursorEvents(false);
@@ -237,22 +233,6 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
     await startSession();
   }
 
-  async function handleFallbackAction() {
-    if (!apiKeyPresent) {
-      await openSettings();
-      return;
-    }
-
-    if (permission !== "granted") {
-      await start();
-      return;
-    }
-
-    if (isOnline && connectionState !== "connected" && connectionState !== "connecting") {
-      await startSession();
-    }
-  }
-
   function handleReset() {
     heardVoiceRef.current = false;
     lastVoiceAtRef.current = 0;
@@ -285,20 +265,6 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
             <WaveRibbon className="wave-ribbon" mirrored samples={speakingSamples} />
           </div>
         </div>
-
-        {(lastError || toolSummary || activeToolName || userSubtitle || assistantSubtitle) && (
-          <section className="overlay-mini-status">
-            <p>{lastError || toolSummary || assistantSubtitle || userSubtitle || activeToolName}</p>
-          </section>
-        )}
-
-        {(!apiKeyPresent || !isOnline || permission === "denied" || permission === "unavailable") && (
-          <div className="overlay-mini-actions">
-            <button className="hud-settings-button" onClick={() => void handleFallbackAction()} type="button">
-              {!apiKeyPresent ? text.overlay.fallbackOpenSettings : text.overlay.fallbackRetry}
-            </button>
-          </div>
-        )}
 
         {openConfirmVisible && pendingOpenRequest && (
           <section className="open-confirm-panel">
