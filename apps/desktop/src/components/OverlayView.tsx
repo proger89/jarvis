@@ -79,10 +79,11 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
 
       const width = 1520;
       const height = 860;
+      const showAboveWindows = settings.overlayMode === "focus";
 
       await overlayWindow.setIgnoreCursorEvents(false);
       await overlayWindow.setFocusable(true);
-      await overlayWindow.setAlwaysOnTop(false);
+      await overlayWindow.setAlwaysOnTop(showAboveWindows);
       await overlayWindow.setSize(new LogicalSize(width, height));
 
       if (monitor) {
@@ -98,7 +99,7 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
     }
 
     void syncOverlayWindow();
-  }, [overlayState, overlayWindow]);
+  }, [overlayState, overlayWindow, settings.overlayMode]);
 
   useEffect(() => {
     function handleKeys(event: KeyboardEvent) {

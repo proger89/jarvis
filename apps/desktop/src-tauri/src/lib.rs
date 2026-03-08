@@ -16,6 +16,7 @@ struct UiSettings {
     language: String,
     wake_word: String,
     address_title: String,
+    overlay_mode: String,
 }
 
 impl Default for UiSettings {
@@ -24,6 +25,7 @@ impl Default for UiSettings {
             language: "ru".to_string(),
             wake_word: "Джарвис".to_string(),
             address_title: "Мистер Старк".to_string(),
+            overlay_mode: "quiet".to_string(),
         }
     }
 }
@@ -46,10 +48,16 @@ fn sanitize_settings(settings: UiSettings) -> UiSettings {
         settings.address_title.trim().to_string()
     };
 
+    let overlay_mode = match settings.overlay_mode.as_str() {
+        "quiet" | "focus" => settings.overlay_mode,
+        _ => "quiet".to_string(),
+    };
+
     UiSettings {
         language,
         wake_word,
         address_title,
+        overlay_mode,
     }
 }
 

@@ -41,7 +41,7 @@ function App() {
         setSettings(storedSettings);
         setApiKeyPresent(storedApiKey);
       } catch {
-        setStatusMessage("Unable to load native settings.");
+        setStatusMessage("Не удалось загрузить настройки.");
       } finally {
         setIsReady(true);
       }
@@ -65,7 +65,7 @@ function App() {
   }
 
   if (!isReady) {
-    return <main className="loading-screen">JARVIS booting...</main>;
+    return <main className="loading-screen">Джарвис запускается...</main>;
   }
 
   if (windowMode === "settings") {

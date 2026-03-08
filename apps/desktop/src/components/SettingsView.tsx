@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCopy } from "../lib/copy";
-import type { AppLanguage, AppSettings } from "../types/settings";
+import type { AppLanguage, AppSettings, OverlayMode } from "../types/settings";
 
 type SettingsViewProps = {
   settings: AppSettings;
@@ -19,6 +19,7 @@ export function SettingsView({
   const [language, setLanguage] = useState(settings.language);
   const [wakeWord, setWakeWord] = useState(settings.wakeWord);
   const [addressTitle, setAddressTitle] = useState(settings.addressTitle);
+  const [overlayMode, setOverlayMode] = useState(settings.overlayMode);
   const [apiKeyDraft, setApiKeyDraft] = useState("");
   const [saveState, setSaveState] = useState("");
   const text = getCopy(language);
@@ -54,6 +55,7 @@ export function SettingsView({
     setLanguage(settings.language);
     setWakeWord(settings.wakeWord);
     setAddressTitle(settings.addressTitle);
+    setOverlayMode(settings.overlayMode);
   }, [settings]);
 
   async function closeWindow() {
@@ -68,6 +70,7 @@ export function SettingsView({
           language,
           wakeWord,
           addressTitle,
+          overlayMode,
         },
         apiKeyDraft,
       );
@@ -108,7 +111,7 @@ export function SettingsView({
                   onChange={(event) => setLanguage(event.currentTarget.value as AppLanguage)}
                 >
                   <option value="ru">{text.settings.languageRussian}</option>
-                  <option value="en">English</option>
+                  <option value="en">{text.settings.languageEnglish}</option>
                 </select>
               </div>
 
@@ -128,6 +131,18 @@ export function SettingsView({
                   value={addressTitle}
                   onChange={(event) => setAddressTitle(event.currentTarget.value)}
                 />
+              </div>
+
+              <div className="field">
+                <label htmlFor="overlay-mode">{text.settings.overlayModeLabel}</label>
+                <select
+                  id="overlay-mode"
+                  value={overlayMode}
+                  onChange={(event) => setOverlayMode(event.currentTarget.value as OverlayMode)}
+                >
+                  <option value="quiet">{text.settings.overlayModeQuiet}</option>
+                  <option value="focus">{text.settings.overlayModeFocus}</option>
+                </select>
               </div>
 
               <div className="field">
@@ -173,7 +188,7 @@ export function SettingsView({
                     <span>{item.detail}</span>
                   </div>
                   <span className={item.done ? "badge done" : "badge pending"}>
-                    {item.done ? "done" : "not-done"}
+                    {item.done ? text.settings.readyBadge : text.settings.pendingBadge}
                   </span>
                 </li>
               ))}
