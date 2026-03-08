@@ -206,7 +206,7 @@ Definition of done:
 
 Задачи:
 - `[done]` Встроить persona prompt как системную идентичность
-- `[not-done]` Реализовать приветствия и короткие spoken replies
+- `[done]` Реализовать приветствия и короткие spoken replies
 - `[done]` Добавить cinematic overlay states
 - `[in-progress]` Реализовать карточки субтитров и status badges
 - `[done]` Поддержать настраиваемое обращение к пользователю
@@ -214,6 +214,10 @@ Definition of done:
 Definition of done:
 - Ассистент говорит коротко и последовательно в стиле JARVIS
 - Визуальный стиль ощущается как AI-presence layer, а не чат
+
+Текущее состояние phase:
+- `[done]` Persona prompt уже закрепляет краткие spoken replies, короткие открытия хода и естественные приветствия
+- `[in-progress]` Subtitles/status layer уже существует, но может быть еще усилен в runtime UX
 
 ### Phase 7 — wake word and activation modes
 Цель: сделать hands-free вход в диалог.
