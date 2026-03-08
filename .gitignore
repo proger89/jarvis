@@ -3,6 +3,8 @@ apps/desktop/dist/
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
 apps/desktop/.vite/
+.env
+.env.*
 *.log
 .DS_Store
 Thumbs.db
