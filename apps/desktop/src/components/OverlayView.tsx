@@ -60,7 +60,7 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
 
         await overlayWindow.setIgnoreCursorEvents(true);
         await overlayWindow.setFocusable(false);
-        await overlayWindow.setAlwaysOnTop(true);
+        await overlayWindow.setAlwaysOnTop(false);
         await overlayWindow.setSize(new LogicalSize(width, height));
 
         if (monitor) {
@@ -82,7 +82,7 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
 
       await overlayWindow.setIgnoreCursorEvents(false);
       await overlayWindow.setFocusable(true);
-      await overlayWindow.setAlwaysOnTop(true);
+      await overlayWindow.setAlwaysOnTop(false);
       await overlayWindow.setSize(new LogicalSize(width, height));
 
       if (monitor) {
@@ -174,6 +174,7 @@ export function OverlayView({ settings, apiKeyPresent }: OverlayViewProps) {
   }
 
   async function openSettings() {
+    await overlayWindow.setAlwaysOnTop(false);
     await invoke("show_settings_window");
   }
 
