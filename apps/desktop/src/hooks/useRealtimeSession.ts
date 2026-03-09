@@ -144,6 +144,25 @@ type ToolResultLike = {
   matches?: Array<{ key?: string; value?: string; scope?: string }>;
 };
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const maybeMessage = Reflect.get(error, "message");
+    if (typeof maybeMessage === "string" && maybeMessage.trim()) {
+      return maybeMessage;
+    }
+  }
+
+  return fallback;
+}
+
 type PendingOpenRequest = {
   title: string;
   url: string;
@@ -787,7 +806,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
       peerConnectionRef.current = peerConnection;
     } catch (error) {
       teardownLiveObjects();
-      const message = error instanceof Error ? error.message : "Не удалось начать разговор.";
+      const message = getErrorMessage(error, "Не удалось начать разговор.");
       logDebug("realtime.client", `startSession failed: ${message}`);
 
       if (shouldStayConnectedRef.current) {

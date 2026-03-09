@@ -984,7 +984,7 @@ fn create_realtime_session(app: AppHandle, offer_sdp: String) -> Result<Realtime
         .text("session", session.to_string());
 
     let response = client
-        .post("https://api.openai.com/v1/realtime/calls")
+        .post(format!("https://api.openai.com/v1/realtime/calls?model={}", REALTIME_MODEL))
         .bearer_auth(key.trim())
         .header("OpenAI-Beta", "realtime=v1")
         .multipart(form)
