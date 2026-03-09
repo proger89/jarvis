@@ -532,7 +532,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     sendClientEvent({
       type: "response.create",
       response: {
-        modalities: ["audio", "text"],
+        output_modalities: ["audio", "text"],
       },
     });
   }
@@ -690,18 +690,25 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
           type: "session.update",
           session: {
             type: "realtime",
+            model: "gpt-realtime",
+            output_modalities: ["audio", "text"],
             tools: realtimeTools,
             tool_choice: "auto",
-            input_audio_transcription: {
-              model: "gpt-4o-mini-transcribe",
-            },
-            turn_detection: {
-              type: "server_vad",
-              create_response: true,
-              interrupt_response: true,
-              prefix_padding_ms: 300,
-              silence_duration_ms: 550,
-              threshold: 0.55,
+            instructions: "You are JARVIS. Speak briefly, clearly, and naturally. Address the user as Mr. Stark when appropriate.",
+            audio: {
+              input: {
+                turn_detection: {
+                  type: "server_vad",
+                  create_response: true,
+                  interrupt_response: true,
+                  prefix_padding_ms: 300,
+                  silence_duration_ms: 550,
+                  threshold: 0.55,
+                },
+              },
+              output: {
+                voice: "marin",
+              },
             },
           },
         });
@@ -730,15 +737,18 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
               setConnectionState("error");
               setLastError(payload.error?.message ?? "Произошла ошибка во время разговора.");
               break;
-            case "response.audio.transcript.delta":
+            case "response.output_audio_transcript.delta":
+            case "response.output_audio.delta":
             case "response.audio_transcript.delta":
+            case "response.output_text.delta":
             case "response.text.delta":
               if (payload.delta) {
                 setAssistantSubtitle((current) => appendTranscript(current, payload.delta ?? ""));
               }
               break;
-            case "response.audio.transcript.done":
+            case "response.output_audio_transcript.done":
             case "response.audio_transcript.done":
+            case "response.output_text.done":
             case "response.text.done":
               if (payload.transcript) {
                 setAssistantSubtitle(payload.transcript.trim());

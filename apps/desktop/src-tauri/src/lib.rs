@@ -20,7 +20,6 @@ const KEYRING_SERVICE: &str = "JarvisDesktop";
 const KEYRING_USERNAME: &str = "openai_api_key";
 const REALTIME_MODEL: &str = "gpt-realtime";
 const REALTIME_VOICE: &str = "marin";
-const REALTIME_INSTRUCTIONS: &str = include_str!("../../../../jarvis_persona_prompt.txt");
 const GLOBAL_ACTIVATION_SHORTCUT: &str = "Ctrl+Alt+J";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -952,28 +951,12 @@ fn create_realtime_session(app: AppHandle, offer_sdp: String) -> Result<Realtime
 
     let session = json!({
         "type": "realtime",
-        "instructions": REALTIME_INSTRUCTIONS,
+        "model": REALTIME_MODEL,
         "audio": {
-            "input": {
-                "turn_detection": {
-                    "type": "server_vad",
-                    "create_response": true,
-                    "interrupt_response": true,
-                    "prefix_padding_ms": 300,
-                    "silence_duration_ms": 550,
-                    "threshold": 0.55
-                },
-                "noise_reduction": {
-                    "type": "far_field"
-                }
-            },
             "output": {
-                "voice": REALTIME_VOICE,
-                "speed": 1.0
+                "voice": REALTIME_VOICE
             }
-        },
-        "tool_choice": "auto",
-        "max_output_tokens": 900
+        }
     });
 
     let form = multipart::Form::new()
@@ -981,7 +964,7 @@ fn create_realtime_session(app: AppHandle, offer_sdp: String) -> Result<Realtime
         .text("session", session.to_string());
 
     let response = client
-        .post(format!("https://api.openai.com/v1/realtime/calls?model={}", REALTIME_MODEL))
+        .post("https://api.openai.com/v1/realtime/calls")
         .bearer_auth(key.trim())
         .header("OpenAI-Beta", "realtime=v1")
         .multipart(form)
