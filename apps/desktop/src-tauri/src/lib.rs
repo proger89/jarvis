@@ -951,12 +951,7 @@ fn create_realtime_session(app: AppHandle, offer_sdp: String) -> Result<Realtime
 
     let session = json!({
         "type": "realtime",
-        "model": REALTIME_MODEL,
-        "audio": {
-            "output": {
-                "voice": REALTIME_VOICE
-            }
-        }
+        "model": REALTIME_MODEL
     });
 
     let form = multipart::Form::new()
