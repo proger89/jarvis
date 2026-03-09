@@ -144,6 +144,8 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
     rejectPendingOpen,
     stopSession,
   } = useRealtimeSession({
+    language: settings.language,
+    addressTitle: settings.addressTitle,
     inputDeviceId: settings.inputDeviceId,
     outputDeviceId: settings.outputDeviceId,
     onSettingsPatch,

@@ -169,6 +169,8 @@ type PendingOpenRequest = {
 };
 
 type UseRealtimeSessionOptions = {
+  language: AppSettings["language"];
+  addressTitle: string;
   inputDeviceId: string;
   outputDeviceId: string;
   onSettingsPatch: (patch: Partial<AppSettings>) => Promise<void>;
@@ -194,7 +196,7 @@ type UseRealtimeSessionResult = {
   stopSession: () => void;
 };
 
-export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPatch }: UseRealtimeSessionOptions): UseRealtimeSessionResult {
+export function useRealtimeSession({ language, addressTitle, inputDeviceId, outputDeviceId, onSettingsPatch }: UseRealtimeSessionOptions): UseRealtimeSessionResult {
   const [connectionState, setConnectionState] = useState<RealtimeConnectionState>("disconnected");
   const [remoteAudioLevel, setRemoteAudioLevel] = useState(0);
   const [remoteSamples, setRemoteSamples] = useState<number[]>(() => createEmptySamples());
@@ -227,6 +229,10 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
       // Ignore debug logging failures silently.
     });
   }
+
+  const assistantInstructions = language === "ru"
+    ? `Ты JARVIS. Всегда отвечай только на русском языке. Говори кратко, ясно и естественно. Обращайся к пользователю как "${addressTitle || "Мистер Старк"}" там, где это уместно.`
+    : `You are JARVIS. Always respond only in English. Speak briefly, clearly, and naturally. Address the user as "${addressTitle || "Mr. Stark"}" when appropriate.`;
 
   function settlePendingOpen(approved: boolean) {
     pendingOpenResolverRef.current?.(approved);
@@ -689,12 +695,11 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
         sendClientEvent({
           type: "session.update",
           session: {
-            type: "realtime",
             model: "gpt-realtime",
             output_modalities: ["audio", "text"],
             tools: realtimeTools,
             tool_choice: "auto",
-            instructions: "You are JARVIS. Speak briefly, clearly, and naturally. Address the user as Mr. Stark when appropriate.",
+            instructions: assistantInstructions,
             audio: {
               input: {
                 turn_detection: {
