@@ -200,6 +200,15 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
   const shouldStayConnectedRef = useRef(false);
   const pendingOpenResolverRef = useRef<((approved: boolean) => void) | null>(null);
 
+  function logDebug(scope: string, message: string) {
+    void invoke("log_debug_event", {
+      scope,
+      message,
+    }).catch(() => {
+      // Ignore debug logging failures silently.
+    });
+  }
+
   function settlePendingOpen(approved: boolean) {
     pendingOpenResolverRef.current?.(approved);
     pendingOpenResolverRef.current = null;
@@ -287,6 +296,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
   }
 
   function stopSession() {
+    logDebug("realtime.client", "stopSession called");
     shouldStayConnectedRef.current = false;
     persistSessionSummary();
     teardownLiveObjects();
@@ -303,6 +313,8 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     if (dataChannelRef.current?.readyState !== "open") {
       return;
     }
+
+    logDebug("realtime.client", "interruptResponse called");
 
     sendClientEvent({ type: "response.cancel" });
     setAssistantSubtitle("");
@@ -527,6 +539,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
   }
 
   async function attachRemoteAudio(stream: MediaStream) {
+    logDebug("realtime.audio", "remote audio track attached");
     const audioElement = document.createElement("audio");
     audioElement.autoplay = true;
     audioElement.srcObject = stream;
@@ -594,6 +607,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
   }
 
   async function startSession(isReconnect = false) {
+    logDebug("realtime.client", `startSession called reconnect=${isReconnect}`);
     if (!isReconnect && (connectionState === "connecting" || connectionState === "connected")) {
       return;
     }
@@ -648,6 +662,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
       });
 
       dataChannel.addEventListener("open", () => {
+        logDebug("realtime.client", "data channel opened");
         reconnectAttemptRef.current = 0;
         setConnectionState("connected");
         setLastEventType("session.open");
@@ -687,10 +702,12 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
             item?: { type?: string; name?: string };
             response?: { output?: Array<{ type?: string; name?: string }> };
           };
+          logDebug("realtime.event", payload.type ?? "server.event");
           setLastEventType(payload.type ?? "server.event");
 
           switch (payload.type) {
             case "error":
+              logDebug("realtime.event", payload.error?.message ?? "server error");
               setConnectionState("error");
               setLastError(payload.error?.message ?? "Произошла ошибка во время разговора.");
               break;
@@ -742,6 +759,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
       });
 
       dataChannel.addEventListener("close", () => {
+        logDebug("realtime.client", "data channel closed");
         if (shouldStayConnectedRef.current) {
           teardownLiveObjects();
           scheduleReconnect("Связь пропала. Повторяю подключение через");
@@ -751,11 +769,13 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
       });
 
       dataChannel.addEventListener("error", () => {
+        logDebug("realtime.client", "data channel error");
         teardownLiveObjects();
         scheduleReconnect("Связь прервалась. Повторяю подключение через");
       });
 
       peerConnection.addEventListener("connectionstatechange", () => {
+        logDebug("realtime.client", `peer connection state=${peerConnection.connectionState}`);
         if (peerConnection.connectionState === "failed" || peerConnection.connectionState === "disconnected") {
           teardownLiveObjects();
           scheduleReconnect("Соединение потеряно. Повторяю подключение через");
@@ -768,6 +788,7 @@ export function useRealtimeSession({ inputDeviceId, outputDeviceId, onSettingsPa
     } catch (error) {
       teardownLiveObjects();
       const message = error instanceof Error ? error.message : "Не удалось начать разговор.";
+      logDebug("realtime.client", `startSession failed: ${message}`);
 
       if (shouldStayConnectedRef.current) {
         scheduleReconnect(`Не удалось начать разговор. Повторяю подключение через`);

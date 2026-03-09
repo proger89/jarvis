@@ -89,6 +89,15 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
   const speechRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const wakeWordTriggeredAtRef = useRef(0);
 
+  function logDebug(scope: string, message: string) {
+    void invoke("log_debug_event", {
+      scope,
+      message,
+    }).catch(() => {
+      // Ignore debug logging failures silently.
+    });
+  }
+
   const speakingSamples = useMemo(() => {
     if (overlayState === "speaking") {
       return remoteSamples.map((sample, index) => {
@@ -173,6 +182,7 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
       }
 
       wakeWordTriggeredAtRef.current = now;
+      logDebug("wakeword", `recognized wake phrase: ${settings.wakeWord}`);
       void handlePrimaryAction();
     };
 
@@ -374,6 +384,7 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
   }
 
   async function handlePrimaryAction() {
+    logDebug("overlay.action", `handlePrimaryAction state=${overlayState} connection=${connectionState} permission=${permission}`);
     if (!apiKeyPresent) {
       await openSettings();
       return;

@@ -6,6 +6,8 @@ import { SettingsView } from "./components/SettingsView";
 import { defaultSettings, type AppSettings } from "./types/settings";
 import "./App.css";
 
+const SETTINGS_SNAPSHOT_STORAGE_KEY = "jarvis.settings.snapshot";
+
 type WindowMode = "overlay" | "settings" | "unknown";
 
 function App() {
@@ -15,6 +17,23 @@ function App() {
   const [apiKeyPreview, setApiKeyPreview] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+
+  function writeRendererSettingsSnapshot(nextSettings: AppSettings) {
+    window.localStorage.setItem(SETTINGS_SNAPSHOT_STORAGE_KEY, JSON.stringify(nextSettings));
+  }
+
+  function readRendererSettingsSnapshot() {
+    const raw = window.localStorage.getItem(SETTINGS_SNAPSHOT_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(raw) as AppSettings;
+    } catch {
+      return null;
+    }
+  }
 
   useEffect(() => {
     const currentWindow = getCurrentWindow();
@@ -40,10 +59,23 @@ function App() {
           invoke<string | null>("api_key_preview"),
         ]);
 
-        setSettings(storedSettings);
+        const rendererSnapshot = readRendererSettingsSnapshot();
+        const resolvedSettings = rendererSnapshot ?? storedSettings;
+
+        setSettings(resolvedSettings);
         setApiKeyPresent(storedApiKey);
         setApiKeyPreview(storedApiKeyPreview);
+        void invoke("log_debug_event", {
+          scope: "frontend.bootstrap",
+          message: `settings_loaded language=${resolvedSettings.language} wakeWord=${resolvedSettings.wakeWord} overlayMode=${resolvedSettings.overlayMode}`,
+        }).catch(() => {
+          // Ignore debug logging failures silently.
+        });
       } catch {
+        const rendererSnapshot = readRendererSettingsSnapshot();
+        if (rendererSnapshot) {
+          setSettings(rendererSnapshot);
+        }
         setStatusMessage("Не удалось загрузить настройки.");
       } finally {
         setIsReady(true);
@@ -57,6 +89,8 @@ function App() {
     const savedSettings = await invoke<AppSettings>("save_settings", {
       settings: nextSettings,
     });
+
+    writeRendererSettingsSnapshot(savedSettings);
 
     if (apiKeyDraft.trim()) {
       await invoke("save_api_key", { apiKey: apiKeyDraft.trim() });
@@ -76,6 +110,7 @@ function App() {
       },
     });
 
+    writeRendererSettingsSnapshot(savedSettings);
     setSettings(savedSettings);
   }
 

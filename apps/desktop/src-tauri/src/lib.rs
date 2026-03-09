@@ -6,13 +6,14 @@ use tauri::{
 use reqwest::blocking::multipart;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
-use std::{env, fs, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
+use std::{env, fs, fs::OpenOptions, io::Write, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
 use serde_json::json;
 use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
 
 const SETTINGS_FILE_NAME: &str = "jarvis-settings.json";
 const SETTINGS_SNAPSHOT_FILE_NAME: &str = "jarvis-settings-snapshot.json";
 const API_KEY_FILE_NAME: &str = "jarvis-api-key.txt";
+const DEBUG_LOG_FILE_NAME: &str = "jarvis-debug.log";
 const MEMORY_FILE_NAME: &str = "jarvis-memory-facts.json";
 const MEMORY_DB_FILE_NAME: &str = "jarvis-memory.sqlite3";
 const KEYRING_SERVICE: &str = "JarvisDesktop";
@@ -199,6 +200,13 @@ fn api_key_file_path(app: &AppHandle) -> Result<PathBuf, String> {
     let mut config_dir = app.path().app_config_dir().map_err(|error| error.to_string())?;
     fs::create_dir_all(&config_dir).map_err(|error| error.to_string())?;
     config_dir.push(API_KEY_FILE_NAME);
+    Ok(config_dir)
+}
+
+fn debug_log_file_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let mut config_dir = app.path().app_config_dir().map_err(|error| error.to_string())?;
+    fs::create_dir_all(&config_dir).map_err(|error| error.to_string())?;
+    config_dir.push(DEBUG_LOG_FILE_NAME);
     Ok(config_dir)
 }
 
@@ -535,6 +543,18 @@ fn current_timestamp() -> u64 {
         .unwrap_or(0)
 }
 
+fn write_debug_log(app: &AppHandle, scope: &str, message: &str) {
+    let Ok(path) = debug_log_file_path(app) else {
+        return;
+    };
+
+    let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) else {
+        return;
+    };
+
+    let _ = writeln!(file, "[{}] [{}] {}", current_timestamp(), scope, message);
+}
+
 fn read_settings_snapshot(app: &AppHandle) -> Result<Option<UiSettings>, String> {
     let path = settings_snapshot_file_path(app)?;
     if !path.exists() {
@@ -553,6 +573,7 @@ fn save_settings_snapshot(app: &AppHandle, settings: &UiSettings) -> Result<(), 
 }
 
 fn load_settings_from_disk(app: &AppHandle) -> Result<UiSettings, String> {
+    write_debug_log(app, "settings", "load_settings_from_disk called");
     if let Ok(connection) = open_memory_db(app) {
         let profile_row = connection.query_row(
             "SELECT language, wake_word, address_title FROM profile WHERE id = 1",
@@ -579,6 +600,7 @@ fn load_settings_from_disk(app: &AppHandle) -> Result<UiSettings, String> {
         );
 
         if let (Ok((language, wake_word, address_title)), Ok((overlay_mode, input_device_id, output_device_id))) = (profile_row, preferences_row) {
+            write_debug_log(app, "settings", "loaded settings from sqlite");
             return Ok(sanitize_settings(UiSettings {
                 language,
                 wake_word,
@@ -591,13 +613,23 @@ fn load_settings_from_disk(app: &AppHandle) -> Result<UiSettings, String> {
     }
 
     if let Some(snapshot) = read_settings_snapshot(app)? {
+        write_debug_log(app, "settings", "loaded settings from snapshot fallback");
         return Ok(snapshot);
     }
 
+    write_debug_log(app, "settings", "falling back to default settings");
     Ok(UiSettings::default())
 }
 
 fn save_settings_to_disk(app: &AppHandle, settings: &UiSettings) -> Result<(), String> {
+    write_debug_log(app, "settings", &format!(
+        "save_settings language={} wake_word={} overlay_mode={} input={} output={}",
+        settings.language,
+        settings.wake_word,
+        settings.overlay_mode,
+        settings.input_device_id,
+        settings.output_device_id
+    ));
     let snapshot_result = save_settings_snapshot(app, settings);
 
     let sqlite_result: Result<(), String> = (|| {
@@ -703,6 +735,7 @@ fn hydrate_api_key_from_fallbacks(app: &AppHandle) -> Result<(), String> {
     }
 
     if let Some(value) = read_api_key_from_disk(app)? {
+        write_debug_log(app, "api_key", "hydrated keyring from disk fallback");
         let _ = entry.set_password(&value);
         return Ok(());
     }
@@ -714,6 +747,7 @@ fn hydrate_api_key_from_fallbacks(app: &AppHandle) -> Result<(), String> {
         .or_else(read_api_key_from_dotenv);
 
     if let Some(value) = fallback {
+        write_debug_log(app, "api_key", "hydrated key from env or dotenv fallback");
         let _ = entry.set_password(&value);
         save_api_key_to_disk(app, &value)?;
     }
@@ -727,11 +761,13 @@ fn load_api_key(app: &AppHandle) -> Result<String, String> {
     if let Ok(value) = entry.get_password() {
         let trimmed = value.trim();
         if !trimmed.is_empty() {
+            write_debug_log(app, "api_key", "loaded key from keyring");
             return Ok(trimmed.to_string());
         }
     }
 
     if let Some(value) = read_api_key_from_disk(app)? {
+        write_debug_log(app, "api_key", "loaded key from disk fallback");
         let _ = entry.set_password(&value);
         return Ok(value);
     }
@@ -739,11 +775,13 @@ fn load_api_key(app: &AppHandle) -> Result<String, String> {
     if let Ok(value) = env::var("OPENAI_API_KEY") {
         let trimmed = value.trim();
         if !trimmed.is_empty() {
+            write_debug_log(app, "api_key", "loaded key from process environment");
             return Ok(trimmed.to_string());
         }
     }
 
     if let Some(value) = read_api_key_from_dotenv() {
+        write_debug_log(app, "api_key", "loaded key from dotenv fallback");
         return Ok(value);
     }
 
@@ -884,7 +922,10 @@ fn save_api_key(app: AppHandle, api_key: String) -> Result<(), String> {
     let disk_result = save_api_key_to_disk(&app, trimmed);
 
     match (keyring_result, disk_result) {
-        (Ok(_), Ok(_)) | (Ok(_), Err(_)) | (Err(_), Ok(_)) => Ok(()),
+        (Ok(_), Ok(_)) | (Ok(_), Err(_)) | (Err(_), Ok(_)) => {
+            write_debug_log(&app, "api_key", "saved key to persistent storage");
+            Ok(())
+        }
         (Err(keyring_error), Err(disk_error)) => Err(format!(
             "Не удалось сохранить ключ ни в keyring, ни в локальное хранилище: {}; {}",
             keyring_error, disk_error
@@ -894,6 +935,7 @@ fn save_api_key(app: AppHandle, api_key: String) -> Result<(), String> {
 
 #[tauri::command]
 fn create_realtime_session(app: AppHandle, offer_sdp: String) -> Result<RealtimeSessionInitResult, String> {
+    write_debug_log(&app, "realtime", "create_realtime_session called");
     let key = load_api_key(&app)?;
 
     if key.trim().is_empty() {
@@ -957,8 +999,11 @@ fn create_realtime_session(app: AppHandle, offer_sdp: String) -> Result<Realtime
             .ok()
             .and_then(|payload| payload.get("error")?.get("message")?.as_str().map(str::to_string))
             .unwrap_or_else(|| "Не удалось начать голосовой сеанс.".to_string());
+        write_debug_log(&app, "realtime", &format!("create_realtime_session failed: {}", message));
         return Err(message);
     }
+
+    write_debug_log(&app, "realtime", "create_realtime_session succeeded");
 
     Ok(RealtimeSessionInitResult {
         model: REALTIME_MODEL.to_string(),
@@ -969,6 +1014,7 @@ fn create_realtime_session(app: AppHandle, offer_sdp: String) -> Result<Realtime
 
 #[tauri::command]
 fn verify_api_key(app: AppHandle) -> Result<ApiKeyCheckResult, String> {
+    write_debug_log(&app, "api_key", "verify_api_key called");
     let key = load_api_key(&app)?;
 
     if key.trim().is_empty() {
@@ -989,6 +1035,7 @@ fn verify_api_key(app: AppHandle) -> Result<ApiKeyCheckResult, String> {
         .map_err(|error| error.to_string())?;
 
     if response.status().is_success() {
+        write_debug_log(&app, "api_key", "verify_api_key succeeded");
         return Ok(ApiKeyCheckResult {
             ok: true,
             message: "Ключ подходит. Можно продолжать.".to_string(),
@@ -1002,7 +1049,15 @@ fn verify_api_key(app: AppHandle) -> Result<ApiKeyCheckResult, String> {
         _ => format!("Не удалось проверить ключ. Код ответа: {}.", status.as_u16()),
     };
 
+    write_debug_log(&app, "api_key", &format!("verify_api_key failed: {}", message));
+
     Ok(ApiKeyCheckResult { ok: false, message })
+}
+
+#[tauri::command]
+fn log_debug_event(app: AppHandle, scope: String, message: String) -> Result<(), String> {
+    write_debug_log(&app, scope.trim(), message.trim());
+    Ok(())
 }
 
 #[tauri::command]
@@ -1266,6 +1321,7 @@ pub fn run() {
             api_key_preview,
             save_api_key,
             verify_api_key,
+            log_debug_event,
             create_realtime_session,
             search_web,
             remember_fact,
