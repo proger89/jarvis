@@ -695,26 +695,25 @@ export function useRealtimeSession({ language, addressTitle, inputDeviceId, outp
         sendClientEvent({
           type: "session.update",
           session: {
-            model: "gpt-realtime",
-            output_modalities: ["audio", "text"],
+            modalities: ["audio", "text"],
+            voice: "marin",
             tools: realtimeTools,
             tool_choice: "auto",
             instructions: assistantInstructions,
-            audio: {
-              input: {
-                turn_detection: {
-                  type: "server_vad",
-                  create_response: true,
-                  interrupt_response: true,
-                  prefix_padding_ms: 300,
-                  silence_duration_ms: 550,
-                  threshold: 0.55,
-                },
-              },
-              output: {
-                voice: "marin",
-              },
+            input_audio_format: "pcm16",
+            output_audio_format: "pcm16",
+            input_audio_transcription: {
+              model: "whisper-1",
             },
+            turn_detection: {
+              type: "server_vad",
+              create_response: true,
+              interrupt_response: true,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 550,
+              threshold: 0.55,
+            },
+            max_response_output_tokens: 900,
           },
         });
       });
