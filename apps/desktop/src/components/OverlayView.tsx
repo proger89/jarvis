@@ -42,6 +42,78 @@ type SpeechRecognitionLike = {
 
 type SpeechRecognitionCtorLike = new () => SpeechRecognitionLike;
 
+function normalizeWakeText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function levenshteinDistance(left: string, right: string) {
+  if (left === right) {
+    return 0;
+  }
+
+  if (!left) {
+    return right.length;
+  }
+
+  if (!right) {
+    return left.length;
+  }
+
+  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+
+  for (let leftIndex = 0; leftIndex < left.length; leftIndex += 1) {
+    let diagonal = previous[0];
+    previous[0] = leftIndex + 1;
+
+    for (let rightIndex = 0; rightIndex < right.length; rightIndex += 1) {
+      const stored = previous[rightIndex + 1];
+      const cost = left[leftIndex] === right[rightIndex] ? 0 : 1;
+      previous[rightIndex + 1] = Math.min(
+        previous[rightIndex + 1] + 1,
+        previous[rightIndex] + 1,
+        diagonal + cost,
+      );
+      diagonal = stored;
+    }
+  }
+
+  return previous[right.length];
+}
+
+function matchesWakePhrase(transcript: string, wakePhrase: string) {
+  const normalizedTranscript = normalizeWakeText(transcript);
+  const normalizedWakePhrase = normalizeWakeText(wakePhrase);
+
+  if (!normalizedTranscript || !normalizedWakePhrase) {
+    return false;
+  }
+
+  if (normalizedTranscript.includes(normalizedWakePhrase)) {
+    return true;
+  }
+
+  const wakeTokens = normalizedWakePhrase.split(" ");
+  const transcriptTokens = normalizedTranscript.split(" ");
+
+  if (wakeTokens.length === 1) {
+    return transcriptTokens.some((token) => levenshteinDistance(token, wakeTokens[0]) <= 2);
+  }
+
+  for (let index = 0; index <= transcriptTokens.length - wakeTokens.length; index += 1) {
+    const segment = transcriptTokens.slice(index, index + wakeTokens.length).join(" ");
+    if (levenshteinDistance(segment, normalizedWakePhrase) <= 2) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 declare global {
   interface Window {
     SpeechRecognition?: SpeechRecognitionCtorLike;
@@ -160,7 +232,7 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
 
     const recognition = new SpeechRecognitionCtor();
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = settings.language === "ru" ? "ru-RU" : "en-US";
 
     recognition.onresult = (event: SpeechRecognitionEventLike) => {
@@ -168,11 +240,9 @@ export function OverlayView({ settings, apiKeyPresent, onSettingsPatch }: Overla
         .slice(event.resultIndex)
         .map((result: SpeechRecognitionResultLike) => result[0]?.transcript ?? "")
         .join(" ")
-        .trim()
-        .toLowerCase();
+        .trim();
 
-      const wakeWord = settings.wakeWord.trim().toLowerCase();
-      if (!wakeWord || !transcript.includes(wakeWord)) {
+      if (!matchesWakePhrase(transcript, settings.wakeWord)) {
         return;
       }
 
