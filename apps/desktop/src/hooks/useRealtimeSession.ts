@@ -217,6 +217,7 @@ export function useRealtimeSession({ language, addressTitle, inputDeviceId, outp
   const analyserRef = useRef<AnalyserNode | null>(null);
   const analyserFrameRef = useRef<number | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
+  const completionTimerRef = useRef<number | null>(null);
   const reconnectAttemptRef = useRef(0);
   const shouldStayConnectedRef = useRef(false);
   const pendingOpenResolverRef = useRef<((approved: boolean) => void) | null>(null);
@@ -247,6 +248,13 @@ export function useRealtimeSession({ language, addressTitle, inputDeviceId, outp
     }
   }
 
+  function clearCompletionTimer() {
+    if (completionTimerRef.current !== null) {
+      window.clearTimeout(completionTimerRef.current);
+      completionTimerRef.current = null;
+    }
+  }
+
   function cleanupRemoteAnalyser() {
     if (analyserFrameRef.current !== null) {
       cancelAnimationFrame(analyserFrameRef.current);
@@ -266,6 +274,7 @@ export function useRealtimeSession({ language, addressTitle, inputDeviceId, outp
 
   function resetSessionState() {
     clearReconnectTimer();
+    clearCompletionTimer();
     reconnectAttemptRef.current = 0;
     shouldStayConnectedRef.current = false;
     cleanupRemoteAnalyser();
@@ -323,6 +332,7 @@ export function useRealtimeSession({ language, addressTitle, inputDeviceId, outp
   function stopSession() {
     logDebug("realtime.client", "stopSession called");
     shouldStayConnectedRef.current = false;
+    clearCompletionTimer();
     persistSessionSummary();
     teardownLiveObjects();
     resetSessionState();
@@ -537,9 +547,7 @@ export function useRealtimeSession({ language, addressTitle, inputDeviceId, outp
 
     sendClientEvent({
       type: "response.create",
-      response: {
-        output_modalities: ["audio", "text"],
-      },
+      response: {},
     });
   }
 
@@ -639,6 +647,7 @@ export function useRealtimeSession({ language, addressTitle, inputDeviceId, outp
 
     shouldStayConnectedRef.current = true;
     clearReconnectTimer();
+    clearCompletionTimer();
 
     if (!("RTCPeerConnection" in window) || !("mediaDevices" in navigator)) {
       setConnectionState("error");
@@ -738,7 +747,6 @@ export function useRealtimeSession({ language, addressTitle, inputDeviceId, outp
           switch (payload.type) {
             case "error":
               logDebug("realtime.event", payload.error?.message ?? "server error");
-              setConnectionState("error");
               setLastError(payload.error?.message ?? "Произошла ошибка во время разговора.");
               break;
             case "response.output_audio_transcript.delta":
@@ -779,8 +787,13 @@ export function useRealtimeSession({ language, addressTitle, inputDeviceId, outp
               }
               break;
             case "response.done":
+              clearCompletionTimer();
               if (!payload.response?.output?.some((item) => item.type === "function_call")) {
                 setActiveToolName("");
+                completionTimerRef.current = window.setTimeout(() => {
+                  completionTimerRef.current = null;
+                  stopSession();
+                }, 900);
               }
               break;
             default:
