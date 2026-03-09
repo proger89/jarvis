@@ -951,32 +951,29 @@ fn create_realtime_session(app: AppHandle, offer_sdp: String) -> Result<Realtime
         .map_err(|error| error.to_string())?;
 
     let session = json!({
-        "session": {
-            "type": "realtime",
-            "model": REALTIME_MODEL,
-            "instructions": REALTIME_INSTRUCTIONS,
-            "audio": {
-                "input": {
-                    "turn_detection": {
-                        "type": "server_vad",
-                        "create_response": true,
-                        "interrupt_response": true,
-                        "prefix_padding_ms": 300,
-                        "silence_duration_ms": 550,
-                        "threshold": 0.55
-                    },
-                    "noise_reduction": {
-                        "type": "far_field"
-                    }
+        "type": "realtime",
+        "instructions": REALTIME_INSTRUCTIONS,
+        "audio": {
+            "input": {
+                "turn_detection": {
+                    "type": "server_vad",
+                    "create_response": true,
+                    "interrupt_response": true,
+                    "prefix_padding_ms": 300,
+                    "silence_duration_ms": 550,
+                    "threshold": 0.55
                 },
-                "output": {
-                    "voice": REALTIME_VOICE,
-                    "speed": 1.0
+                "noise_reduction": {
+                    "type": "far_field"
                 }
             },
-            "tool_choice": "auto",
-            "max_output_tokens": 900
-        }
+            "output": {
+                "voice": REALTIME_VOICE,
+                "speed": 1.0
+            }
+        },
+        "tool_choice": "auto",
+        "max_output_tokens": 900
     });
 
     let form = multipart::Form::new()
